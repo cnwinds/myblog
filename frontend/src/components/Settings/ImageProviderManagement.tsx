@@ -1,18 +1,25 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiTrash2, FiInfo } from 'react-icons/fi';
+import { useAuth } from '../../hooks/useAuth';
 import { settingsService, Provider } from '../../services/settings';
 import ProviderForm from './ProviderForm';
 import './Settings.css';
 
 export default function ImageProviderManagement() {
+  const { isAuthenticated } = useAuth();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
 
   useEffect(() => {
-    loadProviders();
-  }, []);
+    // 只有登录用户才加载数据
+    if (isAuthenticated) {
+      loadProviders();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const loadProviders = async () => {
     try {

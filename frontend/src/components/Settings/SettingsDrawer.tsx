@@ -15,7 +15,7 @@ interface SettingsDrawerProps {
 }
 
 export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
 
   // 阻止背景滚动
   useEffect(() => {
@@ -72,31 +72,37 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
         </div>
 
         <div className="drawer-content">
-          <SettingsTabs
-            tabs={[
-              {
-                id: 'llm',
-                label: 'LLM配置',
-                content: (
-                  <>
-                    <ProviderManagement />
-                    <ProviderSelection />
-                  </>
-                ),
-              },
-              {
-                id: 'image',
-                label: '文生图配置',
-                content: (
-                  <>
-                    <ImageProviderManagement />
-                    <ImageProviderSelection />
-                  </>
-                ),
-              },
-            ]}
-            defaultTab="llm"
-          />
+          {isAuthenticated ? (
+            <SettingsTabs
+              tabs={[
+                {
+                  id: 'llm',
+                  label: 'LLM配置',
+                  content: (
+                    <>
+                      <ProviderManagement />
+                      <ProviderSelection />
+                    </>
+                  ),
+                },
+                {
+                  id: 'image',
+                  label: '文生图配置',
+                  content: (
+                    <>
+                      <ImageProviderManagement />
+                      <ImageProviderSelection />
+                    </>
+                  ),
+                },
+              ]}
+              defaultTab="llm"
+            />
+          ) : (
+            <div className="settings-login-prompt">
+              <p>请先登录以访问系统设置</p>
+            </div>
+          )}
         </div>
       </div>
     </>

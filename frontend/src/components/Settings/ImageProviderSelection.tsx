@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { FiRefreshCw, FiSave, FiInfo, FiHelpCircle } from 'react-icons/fi';
+import { useAuth } from '../../hooks/useAuth';
 import { settingsService, Provider, Settings } from '../../services/settings';
 import Tooltip from './Tooltip';
 import './Settings.css';
 
 export default function ImageProviderSelection() {
+  const { isAuthenticated } = useAuth();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [settings, setSettings] = useState<Settings>({
     llmProvider: null,
@@ -16,8 +18,13 @@ export default function ImageProviderSelection() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    // 只有登录用户才加载数据
+    if (isAuthenticated) {
+      loadData();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const loadData = async () => {
     try {
