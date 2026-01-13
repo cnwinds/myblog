@@ -8,8 +8,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isRegister, setIsRegister] = useState(false);
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,14 +17,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      if (isRegister) {
-        await register(username, password);
-      } else {
-        await login(username, password);
-      }
+      await login(username, password);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || '操作失败，请重试');
+      setError(err.response?.data?.error || '登录失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -34,7 +29,7 @@ export default function Login() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2>{isRegister ? '注册' : '登录'}</h2>
+        <h2>登录</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="username">用户名</label>
@@ -56,23 +51,13 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
-              minLength={6}
             />
           </div>
           {error && <div className="error-message">{error}</div>}
           <button type="submit" disabled={loading} className="btn btn-primary submit-btn">
-            <span>{loading ? '处理中...' : isRegister ? '注册' : '登录'}</span>
+            <span>{loading ? '登录中...' : '登录'}</span>
           </button>
         </form>
-        <div className="switch-mode">
-          <button
-            type="button"
-            onClick={() => setIsRegister(!isRegister)}
-            className="link-btn"
-          >
-            {isRegister ? '已有账号？去登录' : '没有账号？去注册'}
-          </button>
-        </div>
       </div>
     </div>
   );

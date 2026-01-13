@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
+  <defs>
+    <linearGradient id="windGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a9eff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5aaeff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Wind icon - rotating wind streams -->
+  <g id="wind-icon" transform="translate(30, 30)">
+    <!-- First wind stream - rotating arc -->
+    <path d="M -15 -10 A 20 20 0 0 1 5 -10" 
+          stroke="url(#windGradient)" 
+          stroke-width="3.5" 
+          fill="none" 
+          stroke-linecap="round"
+          opacity="0.95"/>
+    <path d="M 5 -10 L 8 -7 L 5 -4" 
+          stroke="url(#windGradient)" 
+          stroke-width="2.5" 
+          fill="none" 
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.9"/>
+    
+    <!-- Second wind stream - rotating arc -->
+    <path d="M -10 5 A 18 18 0 0 1 8 5" 
+          stroke="url(#windGradient)" 
+          stroke-width="3.5" 
+          fill="none" 
+          stroke-linecap="round"
+          opacity="0.85"/>
+    <path d="M 8 5 L 11 8 L 8 11" 
+          stroke="url(#windGradient)" 
+          stroke-width="2.5" 
+          fill="none" 
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.8"/>
+    
+    <!-- Third wind stream - rotating arc -->
+    <path d="M -5 15 A 16 16 0 0 1 11 15" 
+          stroke="url(#windGradient)" 
+          stroke-width="3.5" 
+          fill="none" 
+          stroke-linecap="round"
+          opacity="0.75"/>
+    <path d="M 11 15 L 14 18 L 11 21" 
+          stroke="url(#windGradient)" 
+          stroke-width="2.5" 
+          fill="none" 
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.7"/>
+  </g>
+</svg>

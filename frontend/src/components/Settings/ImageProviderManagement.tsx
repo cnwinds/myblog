@@ -50,7 +50,9 @@ export default function ImageProviderManagement() {
 
     try {
       await settingsService.deleteProvider(id);
-      loadProviders();
+      await loadProviders();
+      // 触发事件，通知其他组件刷新
+      window.dispatchEvent(new CustomEvent('providerUpdated'));
     } catch (error) {
       console.error('Failed to delete provider:', error);
       alert('删除失败');
@@ -60,7 +62,9 @@ export default function ImageProviderManagement() {
   const handleFormSubmit = async () => {
     setShowForm(false);
     setEditingProvider(null);
-    loadProviders();
+    await loadProviders();
+    // 触发事件，通知其他组件刷新
+    window.dispatchEvent(new CustomEvent('providerUpdated'));
   };
 
   const handleFormCancel = () => {
@@ -98,71 +102,77 @@ export default function ImageProviderManagement() {
             <thead>
               <tr>
                 <th>名称</th>
-                <th>API地址</th>
-                <th>模型数量</th>
+                <th>类型</th>
+                <th>文生图模型</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {providers.map((provider) => (
-                <tr key={provider.id}>
-                  <td>{provider.name}</td>
-                  <td className="text-muted">
-                    {provider.apiBase || '默认'}
-                  </td>
-                  <td>
-                    <div className="models-list">
-                      {provider.models.length > 0 ? (
-                        provider.models.map((model, index) => (
-                          <span key={index} className="model-tag">
-                            {model}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-muted">无</span>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={provider.enabled}
-                        onChange={async (e) => {
-                          try {
-                            await settingsService.updateProvider(provider.id, {
-                              enabled: e.target.checked,
-                            });
-                            loadProviders();
-                          } catch (error) {
-                            console.error('Failed to update provider:', error);
-                          }
-                        }}
-                      />
-                      <span className="slider"></span>
-                    </label>
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        onClick={() => handleEdit(provider)}
-                        className="btn-icon"
-                        title="编辑"
-                      >
-                        <FiEdit />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(provider.id)}
-                        className="btn-icon btn-danger"
-                        title="删除"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
+              {providers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="empty-state">
+                    暂无提供商，请添加
                   </td>
                 </tr>
-              ))}
+              ) : (
+                providers.map((provider) => (
+                  <tr key={provider.id}>
+                    <td>{provider.name}</td>
+                    <td>文生图BaiLian</td>
+                    <td>
+                      {provider.models.length > 0 ? (
+                        <div className="models-list">
+                          {provider.models.map((model, idx) => (
+                            <span key={idx} className="model-tag">{model}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
+                    <td>
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={provider.enabled}
+                          onChange={async (e) => {
+                            try {
+                              await settingsService.updateProvider(provider.id, {
+                                enabled: e.target.checked,
+                              });
+                              await loadProviders();
+                              // 触发事件，通知其他组件刷新
+                              window.dispatchEvent(new CustomEvent('providerUpdated'));
+                            } catch (error) {
+                              console.error('Failed to update provider:', error);
+                            }
+                          }}
+                        />
+                        <span className="slider"></span>
+                      </label>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          onClick={() => handleEdit(provider)}
+                          className="btn-icon"
+                          title="编辑"
+                        >
+                          <FiEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(provider.id)}
+                          className="btn-icon btn-danger"
+                          title="删除"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

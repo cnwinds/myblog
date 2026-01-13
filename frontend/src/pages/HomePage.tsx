@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import ArticleList from '../components/Article/ArticleList';
 import ThemeToggle from '../components/ThemeToggle';
 import SettingsDrawer from '../components/Settings/SettingsDrawer';
+import logo from '../assets/logo.svg';
 import './HomePage.css';
 
 export default function HomePage() {
@@ -16,7 +17,8 @@ export default function HomePage() {
       <header className="header">
         <div className="header-content container">
           <Link to="/" className="logo">
-            <h1>我的博客</h1>
+            <img src={logo} alt="cnwinds的博客" className="logo-image" />
+            <h1>cnwinds的博客</h1>
           </Link>
           <nav className="nav">
             {isAuthenticated ? (

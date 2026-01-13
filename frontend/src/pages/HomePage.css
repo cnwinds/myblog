@@ -25,13 +25,22 @@
 .logo {
   text-decoration: none;
   color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.logo-image {
+  height: 32px;
+  width: auto;
+  display: block;
 }
 
 .logo h1 {
   margin: 0;
   font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: var(--color-primary);
+  color: var(--color-text-primary);
 }
 
 .nav {

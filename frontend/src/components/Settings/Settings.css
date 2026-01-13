@@ -424,6 +424,16 @@ input:checked + .slider:before {
   font-size: var(--font-size-sm);
 }
 
+.success-message {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--color-success);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -451,4 +461,13 @@ input:checked + .slider:before {
   padding: var(--spacing-2xl);
   color: var(--color-text-tertiary);
   font-size: var(--font-size-lg);
+}
+
+/* Change Password Form */
+.change-password-form {
+  padding: var(--spacing-md) 0;
+}
+
+.change-password-form .form-group {
+  margin-bottom: var(--spacing-lg);
 }

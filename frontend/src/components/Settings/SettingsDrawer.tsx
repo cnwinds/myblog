@@ -6,6 +6,7 @@ import ProviderManagement from './ProviderManagement';
 import ProviderSelection from './ProviderSelection';
 import ImageProviderManagement from './ImageProviderManagement';
 import ImageProviderSelection from './ImageProviderSelection';
+import ChangePassword from './ChangePassword';
 import SettingsTabs from './SettingsTabs';
 import './SettingsDrawer.css';
 
@@ -94,6 +95,11 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                       <ImageProviderSelection />
                     </>
                   ),
+                },
+                {
+                  id: 'password',
+                  label: '修改密码',
+                  content: <ChangePassword />,
                 },
               ]}
               defaultTab="llm"

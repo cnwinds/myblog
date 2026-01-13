@@ -185,7 +185,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                 // 根据 defaultType 决定显示哪些选项
                 if (defaultType === 'image' && !provider) {
                   // 从文生图提供商管理页面添加时，只显示文生图选项
-                  return <option value="image">文生图 BaiLian</option>;
+                  return <option value="image">文生图BaiLian</option>;
                 } else if (defaultType === 'llm' && !provider) {
                   // 从LLM配置页面添加时，只显示大模型相关选项（不含文生图）
                   return (
@@ -205,7 +205,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                       <option value="llm">大模型 OpenAI</option>
                       <option value="embedding">向量模型 OpenAI</option>
                       <option value="both">大模型+向量模型 OpenAI</option>
-                      <option value="image">文生图 BaiLian</option>
+                      <option value="image">文生图BaiLian</option>
                     </>
                   );
                 }

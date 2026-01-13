@@ -8,7 +8,6 @@ export default function ThemeToggle() {
   return (
     <button onClick={toggleTheme} className="theme-toggle" title={`切换到${theme === 'light' ? '暗色' : '亮色'}主题`}>
       {theme === 'light' ? <FiMoon /> : <FiSun />}
-      <span className="theme-toggle-text">{theme === 'light' ? '浅色' : '深色'}</span>
     </button>
   );
 }

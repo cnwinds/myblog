@@ -13,16 +13,10 @@
 }
 
 .theme-toggle svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   stroke: currentColor;
   flex-shrink: 0;
-}
-
-.theme-toggle-text {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  white-space: nowrap;
 }
 
 .theme-toggle:hover {

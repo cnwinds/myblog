@@ -16,6 +16,7 @@ export default function ProviderSelection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     // 只有登录用户才加载数据
@@ -24,6 +25,23 @@ export default function ProviderSelection() {
     } else {
       setLoading(false);
     }
+  }, [isAuthenticated]);
+
+  // 监听提供商更新事件，当添加/更新提供商后自动刷新
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleProviderUpdate = () => {
+      // 重新加载数据
+      loadData();
+    };
+
+    // 监听自定义事件
+    window.addEventListener('providerUpdated', handleProviderUpdate);
+    return () => {
+      window.removeEventListener('providerUpdated', handleProviderUpdate);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const loadData = async () => {
@@ -44,17 +62,22 @@ export default function ProviderSelection() {
   const handleSave = async () => {
     if (!settings.llmProvider && !settings.embeddingProvider) {
       setError('请至少选择一个提供商');
+      setSuccess('');
       return;
     }
 
     setSaving(true);
     setError('');
+    setSuccess('');
 
     try {
       await settingsService.saveSettings(settings);
-      alert('配置保存成功！');
+      setSuccess('配置保存成功！');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || '保存失败');
+      setSuccess('');
     } finally {
       setSaving(false);
     }
@@ -68,6 +91,7 @@ export default function ProviderSelection() {
         imageProvider: null,
       });
       setError('');
+      setSuccess('');
     }
   };
 
@@ -91,50 +115,134 @@ export default function ProviderSelection() {
     return provider.type === 'embedding' || provider.type === 'both' ? provider.models : [];
   };
 
-  const handleLLMProviderChange = (providerId: number) => {
-    const models = getLLMModels(providerId);
-    setSettings({
-      ...settings,
-      llmProvider: {
-        providerId,
-        model: models[0] || '',
-      },
+  // 生成大模型选项列表：格式为 "提供商名(模型名)"
+  const getLLMOptions = () => {
+    const options: Array<{ value: string; label: string; providerId: number; model: string }> = [];
+    llmProviders.forEach((provider) => {
+      const models = getLLMModels(provider.id);
+      models.forEach((model) => {
+        options.push({
+          value: `${provider.id}:${model}`,
+          label: `${provider.name}(${model})`,
+          providerId: provider.id,
+          model: model,
+        });
+      });
     });
+    return options;
   };
 
-  const handleLLMModelChange = (model: string) => {
-    if (settings.llmProvider) {
+  // 生成向量模型选项列表：格式为 "提供商名(模型名)"
+  const getEmbeddingOptions = () => {
+    const options: Array<{ value: string; label: string; providerId: number; model: string }> = [];
+    embeddingProviders.forEach((provider) => {
+      const models = getEmbeddingModels(provider.id);
+      models.forEach((model) => {
+        options.push({
+          value: `${provider.id}:${model}`,
+          label: `${provider.name}(${model})`,
+          providerId: provider.id,
+          model: model,
+        });
+      });
+    });
+    return options;
+  };
+
+  // 处理大模型选择（一次性选择提供商和模型）
+  const handleLLMSelection = (value: string) => {
+    if (!value) {
+      setSettings({
+        ...settings,
+        llmProvider: null,
+      });
+      return;
+    }
+
+    const [providerIdStr, model] = value.split(':');
+    const providerId = parseInt(providerIdStr);
+    const provider = providers.find(p => p.id === providerId);
+    if (!provider) return;
+
+    const embeddingModels = getEmbeddingModels(providerId);
+
+    // 如果选择的是 type='both' 的提供商，同时设置大模型和向量模型
+    if (provider.type === 'both' && embeddingModels.length > 0) {
       setSettings({
         ...settings,
         llmProvider: {
-          ...settings.llmProvider,
+          providerId,
+          model,
+        },
+        embeddingProvider: {
+          providerId,
+          model: embeddingModels[0] || '',
+        },
+      });
+    } else {
+      // 只设置大模型
+      setSettings({
+        ...settings,
+        llmProvider: {
+          providerId,
           model,
         },
       });
     }
   };
 
-  const handleEmbeddingProviderChange = (providerId: number) => {
-    const models = getEmbeddingModels(providerId);
-    setSettings({
-      ...settings,
-      embeddingProvider: {
-        providerId,
-        model: models[0] || '',
-      },
-    });
-  };
+  // 处理向量模型选择（一次性选择提供商和模型）
+  const handleEmbeddingSelection = (value: string) => {
+    if (!value) {
+      setSettings({
+        ...settings,
+        embeddingProvider: null,
+      });
+      return;
+    }
 
-  const handleEmbeddingModelChange = (model: string) => {
-    if (settings.embeddingProvider) {
+    const [providerIdStr, model] = value.split(':');
+    const providerId = parseInt(providerIdStr);
+    const provider = providers.find(p => p.id === providerId);
+    if (!provider) return;
+
+    const llmModels = getLLMModels(providerId);
+
+    // 如果选择的是 type='both' 的提供商，同时设置大模型和向量模型
+    if (provider.type === 'both' && llmModels.length > 0) {
+      setSettings({
+        ...settings,
+        llmProvider: {
+          providerId,
+          model: llmModels[0] || '',
+        },
+        embeddingProvider: {
+          providerId,
+          model,
+        },
+      });
+    } else {
+      // 只设置向量模型
       setSettings({
         ...settings,
         embeddingProvider: {
-          ...settings.embeddingProvider,
+          providerId,
           model,
         },
       });
     }
+  };
+
+  // 获取当前选择的大模型选项值
+  const getCurrentLLMValue = () => {
+    if (!settings.llmProvider) return '';
+    return `${settings.llmProvider.providerId}:${settings.llmProvider.model}`;
+  };
+
+  // 获取当前选择的向量模型选项值
+  const getCurrentEmbeddingValue = () => {
+    if (!settings.embeddingProvider) return '';
+    return `${settings.embeddingProvider.providerId}:${settings.embeddingProvider.model}`;
   };
 
   if (loading) {
@@ -143,11 +251,17 @@ export default function ProviderSelection() {
 
   const llmProviders = getLLMProviders();
   const embeddingProviders = getEmbeddingProviders();
+  const llmOptions = getLLMOptions();
+  const embeddingOptions = getEmbeddingOptions();
 
   return (
-    <div className="settings-section">
+    <div className="settings-section provider-selection-container">
       <div className="section-header">
         <h2>提供商选择</h2>
+        <button onClick={loadData} className="btn btn-secondary" disabled={loading} title="刷新提供商列表">
+          <FiRefreshCw />
+          <span>刷新</span>
+        </button>
       </div>
 
       <div className="info-box">
@@ -156,7 +270,7 @@ export default function ProviderSelection() {
         </span>
         <div>
           <strong>提供商选择说明：</strong>
-          选择要使用的大模型提供商和向量模型提供商。请确保至少选择一个提供商才能正常使用AI功能。
+          选择要使用的大模型提供商和向量模型提供商。如果选择"大模型+向量模型"类型的提供商，将同时设置大模型和向量模型。请确保至少选择一个提供商才能正常使用AI功能。
         </div>
       </div>
 
@@ -164,78 +278,51 @@ export default function ProviderSelection() {
         <div className="form-group">
           <label>
             <span className="required">*</span> 大模型提供商
-            <Tooltip content="选择用于生成文本内容的大模型提供商">
+            <Tooltip content="选择用于生成文本内容的大模型提供商和模型">
               <span className="help-icon">
                 <FiHelpCircle />
               </span>
             </Tooltip>
           </label>
           <select
-            value={settings.llmProvider?.providerId || ''}
-            onChange={(e) => handleLLMProviderChange(parseInt(e.target.value))}
+            value={getCurrentLLMValue()}
+            onChange={(e) => handleLLMSelection(e.target.value)}
             disabled={saving}
           >
             <option value="">请选择</option>
-            {llmProviders.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
+            {llmOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
-          {settings.llmProvider && (
-            <select
-              value={settings.llmProvider.model}
-              onChange={(e) => handleLLMModelChange(e.target.value)}
-              disabled={saving}
-              className="model-select"
-            >
-              {getLLMModels(settings.llmProvider.providerId).map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
 
         <div className="form-group">
           <label>
-            <span className="required">*</span> 向量模型提供商
-            <Tooltip content="选择用于生成文本嵌入向量的模型提供商">
+            向量模型提供商
+            <Tooltip content="选择用于生成文本嵌入向量的模型提供商和模型（可选）">
               <span className="help-icon">
                 <FiHelpCircle />
               </span>
             </Tooltip>
           </label>
           <select
-            value={settings.embeddingProvider?.providerId || ''}
-            onChange={(e) => handleEmbeddingProviderChange(parseInt(e.target.value))}
+            value={getCurrentEmbeddingValue()}
+            onChange={(e) => handleEmbeddingSelection(e.target.value)}
             disabled={saving}
           >
             <option value="">请选择</option>
-            {embeddingProviders.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
+            {embeddingOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
-          {settings.embeddingProvider && (
-            <select
-              value={settings.embeddingProvider.model}
-              onChange={(e) => handleEmbeddingModelChange(e.target.value)}
-              disabled={saving}
-              className="model-select"
-            >
-              {getEmbeddingModels(settings.embeddingProvider.providerId).map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
 
         {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
 
         <div className="form-actions">
           <button onClick={handleReset} className="btn btn-secondary" disabled={saving}>

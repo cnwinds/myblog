@@ -24,7 +24,8 @@ export default function ProviderManagement() {
   const loadProviders = async () => {
     try {
       const data = await settingsService.getProviders();
-      setProviders(data);
+      // 只显示大模型相关的提供商（llm、embedding、both），不显示image类型
+      setProviders(data.filter(p => p.type !== 'image'));
     } catch (error) {
       console.error('Failed to load providers:', error);
     } finally {
@@ -49,7 +50,9 @@ export default function ProviderManagement() {
 
     try {
       await settingsService.deleteProvider(id);
-      loadProviders();
+      await loadProviders();
+      // 触发事件，通知其他组件刷新
+      window.dispatchEvent(new CustomEvent('providerUpdated'));
     } catch (error: any) {
       alert(error.response?.data?.error || '删除失败');
     }
@@ -60,7 +63,9 @@ export default function ProviderManagement() {
       await settingsService.updateProvider(provider.id, {
         enabled: !provider.enabled,
       });
-      loadProviders();
+      await loadProviders();
+      // 触发事件，通知其他组件刷新
+      window.dispatchEvent(new CustomEvent('providerUpdated'));
     } catch (error: any) {
       alert(error.response?.data?.error || '更新失败');
     }
@@ -69,7 +74,9 @@ export default function ProviderManagement() {
   const handleFormSubmit = async () => {
     setShowForm(false);
     setEditingProvider(null);
-    loadProviders();
+    await loadProviders();
+    // 触发事件，通知其他组件刷新
+    window.dispatchEvent(new CustomEvent('providerUpdated'));
   };
 
   const handleFormCancel = () => {
@@ -142,9 +149,9 @@ export default function ProviderManagement() {
                   <tr key={provider.id}>
                     <td>{provider.name}</td>
                     <td>
-                      {provider.type === 'llm' && '大模型'}
-                      {provider.type === 'embedding' && '向量模型'}
-                      {provider.type === 'both' && '大模型+向量模型'}
+                      {provider.type === 'llm' && '大模型 OpenAI'}
+                      {provider.type === 'embedding' && '向量模型 OpenAI'}
+                      {provider.type === 'both' && '大模型+向量模型 OpenAI'}
                     </td>
                     <td>
                       {llmModels.length > 0 ? (

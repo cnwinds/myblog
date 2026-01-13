@@ -16,6 +16,7 @@ export default function ImageProviderSelection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     // 只有登录用户才加载数据
@@ -24,6 +25,23 @@ export default function ImageProviderSelection() {
     } else {
       setLoading(false);
     }
+  }, [isAuthenticated]);
+
+  // 监听提供商更新事件，当添加/更新提供商后自动刷新
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleProviderUpdate = () => {
+      // 重新加载数据
+      loadData();
+    };
+
+    // 监听自定义事件
+    window.addEventListener('providerUpdated', handleProviderUpdate);
+    return () => {
+      window.removeEventListener('providerUpdated', handleProviderUpdate);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const loadData = async () => {
@@ -43,14 +61,24 @@ export default function ImageProviderSelection() {
   };
 
   const handleSave = async () => {
+    if (!settings.imageProvider) {
+      setError('请选择一个文生图提供商');
+      setSuccess('');
+      return;
+    }
+
     setSaving(true);
     setError('');
+    setSuccess('');
 
     try {
       await settingsService.saveSettings(settings);
-      alert('配置保存成功！');
+      setSuccess('配置保存成功！');
+      // 3秒后自动清除成功消息
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || '保存失败');
+      setSuccess('');
     } finally {
       setSaving(false);
     }
@@ -59,10 +87,12 @@ export default function ImageProviderSelection() {
   const handleReset = () => {
     if (window.confirm('确定要重置配置吗？')) {
       setSettings({
-        ...settings,
+        llmProvider: null,
+        embeddingProvider: null,
         imageProvider: null,
       });
       setError('');
+      setSuccess('');
     }
   };
 
@@ -72,37 +102,67 @@ export default function ImageProviderSelection() {
     return provider.type === 'image' ? provider.models : [];
   };
 
-  const handleImageProviderChange = (providerId: number) => {
-    const models = getImageModels(providerId);
+  // 生成文生图选项列表：格式为 "提供商名(模型名)"
+  const getImageOptions = () => {
+    const options: Array<{ value: string; label: string; providerId: number; model: string }> = [];
+    providers.forEach((provider) => {
+      const models = getImageModels(provider.id);
+      models.forEach((model) => {
+        options.push({
+          value: `${provider.id}:${model}`,
+          label: `${provider.name}(${model})`,
+          providerId: provider.id,
+          model: model,
+        });
+      });
+    });
+    return options;
+  };
+
+  // 处理文生图选择（一次性选择提供商和模型）
+  const handleImageSelection = (value: string) => {
+    if (!value) {
+      setSettings({
+        ...settings,
+        imageProvider: null,
+      });
+      return;
+    }
+
+    const [providerIdStr, model] = value.split(':');
+    const providerId = parseInt(providerIdStr);
+    const provider = providers.find(p => p.id === providerId);
+    if (!provider) return;
+
     setSettings({
       ...settings,
       imageProvider: {
         providerId,
-        model: models[0] || '',
+        model,
       },
     });
   };
 
-  const handleImageModelChange = (model: string) => {
-    if (settings.imageProvider) {
-      setSettings({
-        ...settings,
-        imageProvider: {
-          ...settings.imageProvider,
-          model,
-        },
-      });
-    }
+  // 获取当前选择的文生图选项值
+  const getCurrentImageValue = () => {
+    if (!settings.imageProvider) return '';
+    return `${settings.imageProvider.providerId}:${settings.imageProvider.model}`;
   };
 
   if (loading) {
     return <div className="loading">加载中...</div>;
   }
 
+  const imageOptions = getImageOptions();
+
   return (
-    <div className="settings-section">
+    <div className="settings-section provider-selection-container">
       <div className="section-header">
         <h2>文生图提供商选择</h2>
+        <button onClick={loadData} className="btn btn-secondary" disabled={loading} title="刷新提供商列表">
+          <FiRefreshCw />
+          <span>刷新</span>
+        </button>
       </div>
 
       <div className="info-box">
@@ -119,40 +179,28 @@ export default function ImageProviderSelection() {
         <div className="form-group">
           <label>
             <span className="required">*</span> 文生图提供商
-            <Tooltip content="选择用于生成图片的文生图提供商">
+            <Tooltip content="选择用于生成图片的文生图提供商和模型">
               <span className="help-icon">
                 <FiHelpCircle />
               </span>
             </Tooltip>
           </label>
           <select
-            value={settings.imageProvider?.providerId || ''}
-            onChange={(e) => handleImageProviderChange(Number(e.target.value))}
+            value={getCurrentImageValue()}
+            onChange={(e) => handleImageSelection(e.target.value)}
+            disabled={saving}
           >
             <option value="">请选择</option>
-            {providers.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
+            {imageOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
-          {settings.imageProvider && (
-            <select
-              value={settings.imageProvider.model || ''}
-              onChange={(e) => handleImageModelChange(e.target.value)}
-              disabled={saving}
-              className="model-select"
-            >
-              {getImageModels(settings.imageProvider.providerId).map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
 
         {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
 
         <div className="form-actions">
           <button onClick={handleReset} className="btn btn-secondary" disabled={saving}>

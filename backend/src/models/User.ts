@@ -43,4 +43,13 @@ export class UserModel {
     const isValid = await comparePassword(password, user.password);
     return isValid ? user : null;
   }
+
+  static async updatePassword(userId: number, newPassword: string): Promise<boolean> {
+    const hashedPassword = await hashPassword(newPassword);
+    const result = db
+      .prepare('UPDATE users SET password = ? WHERE id = ?')
+      .run(hashedPassword, userId);
+    
+    return result.changes > 0;
+  }
 }

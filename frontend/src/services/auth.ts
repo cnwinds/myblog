@@ -11,6 +11,11 @@ export interface RegisterData {
   password: string;
 }
 
+export interface ChangePasswordData {
+  oldPassword: string;
+  newPassword: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: {
@@ -38,6 +43,10 @@ export const authService = {
 
   logout: (): void => {
     storage.clear();
+  },
+
+  changePassword: async (data: ChangePasswordData): Promise<void> => {
+    await api.post('/auth/change-password', data);
   },
 
   isAuthenticated: (): boolean => {
