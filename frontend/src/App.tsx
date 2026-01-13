@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import EditorPage from './pages/EditorPage';
-import SettingsPage from './pages/SettingsPage';
 import ArticleDetail from './components/Article/ArticleDetail';
 import { useAuth } from './hooks/useAuth';
 

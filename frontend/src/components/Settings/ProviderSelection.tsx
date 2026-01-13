@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiRefreshCw, FiSave, FiHelpCircle, FiInfo } from 'react-icons/fi';
-import { settingsService, Provider, ProviderSelection as ProviderSelectionType, Settings } from '../../services/settings';
+import { settingsService, Provider, Settings } from '../../services/settings';
 import Tooltip from './Tooltip';
 import './Settings.css';
 

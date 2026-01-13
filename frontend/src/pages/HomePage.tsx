@@ -8,7 +8,7 @@ import SettingsDrawer from '../components/Settings/SettingsDrawer';
 import './HomePage.css';
 
 export default function HomePage() {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (

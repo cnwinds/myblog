@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiTrash2, FiInfo } from 'react-icons/fi';
-import { settingsService, Provider, CreateProviderData } from '../../services/settings';
+import { settingsService, Provider } from '../../services/settings';
 import ProviderForm from './ProviderForm';
 import './Settings.css';
 
@@ -99,6 +99,7 @@ export default function ProviderManagement() {
           provider={editingProvider}
           onSubmit={handleFormSubmit}
           onCancel={handleFormCancel}
+          defaultType="llm"
         />
       )}
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiTrash2, FiInfo } from 'react-icons/fi';
-import { settingsService, Provider, CreateProviderData } from '../../services/settings';
+import { settingsService, Provider } from '../../services/settings';
 import ProviderForm from './ProviderForm';
 import './Settings.css';
 
@@ -76,7 +76,7 @@ export default function ImageProviderManagement() {
       </div>
 
       <div className="info-box">
-        <span className="info-icon">ℹ️</span>
+        <span className="info-icon"><FiInfo /></span>
         <div>
           <strong>文生图提供商管理说明：</strong>
           可以配置多个文生图提供商，每个提供商可以配置多个模型。在下方选择要使用的提供商和模型。

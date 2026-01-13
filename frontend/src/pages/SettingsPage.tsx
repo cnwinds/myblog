@@ -7,7 +7,7 @@ import ProviderSelection from '../components/Settings/ProviderSelection';
 import './SettingsPage.css';
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="settings-page">

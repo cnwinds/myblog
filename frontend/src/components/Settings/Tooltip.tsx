@@ -9,7 +9,7 @@ interface TooltipProps {
 
 export default function Tooltip({ content, children, delay = 300 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     timeoutRef.current = setTimeout(() => {

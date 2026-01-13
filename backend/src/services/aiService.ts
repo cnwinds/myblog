@@ -19,6 +19,40 @@ export interface ImageGenerationResponse {
   imageBase64?: string;
 }
 
+// OpenAI API 响应类型
+interface OpenAICompletionResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+// OpenAI Embedding API 响应类型
+interface OpenAIEmbeddingResponse {
+  data: Array<{
+    embedding: number[];
+  }>;
+}
+
+// 百炼文生图 API 响应类型
+interface DashScopeImageResponse {
+  output?: {
+    results?: Array<{
+      url?: string;
+      image_url?: string;
+      image_base64?: string;
+      image?: string;
+    }>;
+    task_id?: string;
+  };
+}
+
 /**
  * 调用大模型生成内容
  */
@@ -95,7 +129,7 @@ async function callProviderAPI(
     throw new Error(`API call failed: ${response.statusText} - ${errorText}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as OpenAICompletionResponse;
   return {
     content: data.choices[0]?.message?.content || '',
     usage: data.usage,
@@ -130,7 +164,7 @@ async function callEmbeddingAPI(provider: Provider, model: string, text: string)
     throw new Error(`Embedding API call failed: ${response.statusText} - ${errorText}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as OpenAIEmbeddingResponse;
   return {
     embedding: data.data[0]?.embedding || [],
   };
@@ -207,7 +241,7 @@ export async function callImageGeneration(
     throw new Error(errorMessage);
   }
 
-  const data = await response.json();
+  const data = await response.json() as DashScopeImageResponse;
   
   // 百炼API返回格式处理
   // 同步调用：直接返回结果在 output.results 中

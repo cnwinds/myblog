@@ -47,13 +47,23 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
       setType(defaultType);
       // 设置默认值
       if (defaultType === 'llm') {
-        setLlmModels('deepseek-v3.1, gpt-4-turbo-preview');
+        setLlmModels('gpt-4, gpt-3.5-turbo');
+        setApiBase('https://api.openai.com/v1');
       } else if (defaultType === 'embedding') {
         setEmbeddingModels('text-embedding-3-small, text-embedding-3-large');
+        setApiBase('https://api.openai.com/v1');
       } else if (defaultType === 'both') {
-        setLlmModels('deepseek-v3.1, gpt-4-turbo-preview');
+        setLlmModels('gpt-4, gpt-3.5-turbo');
         setEmbeddingModels('text-embedding-3-small, text-embedding-3-large');
+        setApiBase('https://api.openai.com/v1');
+      } else if (defaultType === 'image') {
+        setImageModels('');
+        setApiBase('https://dashscope.aliyuncs.com');
       }
+    } else {
+      // 默认类型为 llm
+      setLlmModels('gpt-4, gpt-3.5-turbo');
+      setApiBase('https://api.openai.com/v1');
     }
   }, [provider, defaultType]);
 
@@ -145,25 +155,61 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
               onChange={(e) => {
                 const newType = e.target.value as 'llm' | 'embedding' | 'both' | 'image';
                 setType(newType);
-                // 切换类型时清空不相关的模型字段
+                // 切换类型时清空不相关的模型字段并设置默认值
                 if (newType === 'llm') {
                   setEmbeddingModels('');
                   setImageModels('');
+                  setLlmModels('gpt-4, gpt-3.5-turbo');
+                  setApiBase('https://api.openai.com/v1');
                 } else if (newType === 'embedding') {
                   setLlmModels('');
                   setImageModels('');
+                  setEmbeddingModels('text-embedding-3-small, text-embedding-3-large');
+                  setApiBase('https://api.openai.com/v1');
                 } else if (newType === 'image') {
                   setLlmModels('');
                   setEmbeddingModels('');
+                  setImageModels('');
+                  setApiBase('https://dashscope.aliyuncs.com');
+                } else if (newType === 'both') {
+                  setImageModels('');
+                  setLlmModels('gpt-4, gpt-3.5-turbo');
+                  setEmbeddingModels('text-embedding-3-small, text-embedding-3-large');
+                  setApiBase('https://api.openai.com/v1');
                 }
               }}
               required
               disabled={loading}
             >
-              <option value="llm">大模型 OpenAI</option>
-              <option value="embedding">向量模型 OpenAI</option>
-              <option value="both">大模型+向量模型 OpenAI</option>
-              <option value="image">文生图 BaiLian</option>
+              {(() => {
+                // 根据 defaultType 决定显示哪些选项
+                if (defaultType === 'image' && !provider) {
+                  // 从文生图提供商管理页面添加时，只显示文生图选项
+                  return <option value="image">文生图 BaiLian</option>;
+                } else if (defaultType === 'llm' && !provider) {
+                  // 从LLM配置页面添加时，只显示大模型相关选项（不含文生图）
+                  return (
+                    <>
+                      <option value="llm">大模型 OpenAI</option>
+                      <option value="embedding">向量模型 OpenAI</option>
+                      <option value="both">大模型+向量模型 OpenAI</option>
+                    </>
+                  );
+                } else if (defaultType === 'embedding' && !provider) {
+                  // 从向量模型提供商管理页面添加时，只显示向量模型选项
+                  return <option value="embedding">向量模型 OpenAI</option>;
+                } else {
+                  // 编辑现有提供商或没有 defaultType 时，显示所有选项
+                  return (
+                    <>
+                      <option value="llm">大模型 OpenAI</option>
+                      <option value="embedding">向量模型 OpenAI</option>
+                      <option value="both">大模型+向量模型 OpenAI</option>
+                      <option value="image">文生图 BaiLian</option>
+                    </>
+                  );
+                }
+              })()}
             </select>
           </div>
 
@@ -219,7 +265,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                 type="text"
                 value={llmModels}
                 onChange={(e) => setLlmModels(e.target.value)}
-                placeholder="deepseek-v3.1, gpt-4-turbo-preview"
+                placeholder="gpt-4, gpt-3.5-turbo"
                 required
                 disabled={loading}
               />
@@ -284,8 +330,6 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
               </label>
             </label>
           </div>
-
-          {error && <div className="error-message">{error}</div>}
 
           {error && <div className="error-message">{error}</div>}
 

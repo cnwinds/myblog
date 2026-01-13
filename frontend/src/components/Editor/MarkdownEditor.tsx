@@ -15,7 +15,6 @@ interface MarkdownEditorProps {
 export default function MarkdownEditor({
   value,
   onChange,
-  placeholder = '开始编写你的文章...',
 }: MarkdownEditorProps) {
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -135,7 +134,7 @@ export default function MarkdownEditor({
           onChange={(val) => onChange(val || '')}
           preview="edit"
           hideToolbar={false}
-          visibleDragBar={false}
+          visibleDragbar={false}
         />
       </div>
       {showImageUpload && (
