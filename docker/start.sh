@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Docker 一键启动脚本
+# 精确管理 myblog 项目的容器，不影响其他 Docker 应用
 
 set -e
 
@@ -9,6 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
 ENV_EXAMPLE="$SCRIPT_DIR/.env.example"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+
+# 项目名称，用于隔离容器
+PROJECT_NAME="myblog"
 
 # 检测 Docker Compose 命令
 if docker compose version > /dev/null 2>&1; then
@@ -22,6 +26,7 @@ fi
 
 echo "🚀 启动 MyBlog 应用..."
 echo "📦 使用: $DOCKER_COMPOSE"
+echo "🏷️  项目名称: $PROJECT_NAME"
 
 # 检查 Docker 是否运行
 if ! docker info > /dev/null 2>&1; then
@@ -50,24 +55,24 @@ EOF
     echo "⚠️  请编辑 $ENV_FILE 文件，修改 JWT_SECRET"
 fi
 
-# 构建并启动
+# 构建并启动（使用项目名称隔离）
 echo "🔨 构建镜像..."
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" build
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" build
 
 echo "🚀 启动服务..."
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" up -d
 
 echo "⏳ 等待服务启动..."
 sleep 5
 
 # 检查服务状态
 echo "📊 服务状态："
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" ps
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" ps
 
 echo ""
 echo "✅ 启动完成！"
 echo "📱 前端地址: http://localhost:3000"
 echo "🔧 后端地址: http://localhost:3001"
 echo ""
-echo "查看日志: $DOCKER_COMPOSE -f $COMPOSE_FILE logs -f"
-echo "停止服务: $DOCKER_COMPOSE -f $COMPOSE_FILE down"
+echo "查看日志: $DOCKER_COMPOSE -f $COMPOSE_FILE -p $PROJECT_NAME logs -f"
+echo "停止服务: $DOCKER_COMPOSE -f $COMPOSE_FILE -p $PROJECT_NAME down"

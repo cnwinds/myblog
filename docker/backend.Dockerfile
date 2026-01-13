@@ -10,11 +10,14 @@ RUN npm config set registry https://registry.npmmirror.com
 # 设置 apk 使用阿里云镜像源加速
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-# 安装构建工具（better-sqlite3 需要编译原生模块）
+# 安装构建工具和图片处理依赖
+# better-sqlite3 需要编译原生模块
+# sharp 需要 vips-dev 库
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
+    vips-dev \
     && rm -rf /var/cache/apk/*
 
 # 复制 package 文件
@@ -40,11 +43,15 @@ RUN npm config set registry https://registry.npmmirror.com
 # 设置 apk 使用阿里云镜像源加速
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-# 安装构建工具（better-sqlite3 需要编译原生模块）
+# 安装构建工具和运行时依赖
+# better-sqlite3 需要编译原生模块
+# sharp 需要 vips 库（运行时也需要）
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
+    vips \
+    vips-dev \
     && rm -rf /var/cache/apk/*
 
 # 复制 package 文件
@@ -53,8 +60,8 @@ COPY backend/package*.json ./
 # 安装生产依赖（better-sqlite3 需要编译）
 RUN npm ci --only=production
 
-# 清理构建工具以减小镜像大小（better-sqlite3 已编译完成）
-RUN apk del python3 make g++ || true
+# 清理构建工具以减小镜像大小（保留 vips 运行时库）
+RUN apk del python3 make g++ vips-dev || true
 
 # 复制构建产物
 COPY --from=builder /app/dist ./dist

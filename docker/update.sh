@@ -2,12 +2,19 @@
 
 # Docker 更新脚本
 # 从 git 拉取最新代码，如果有更新则重新构建并重启服务
+# 精确管理 myblog 项目的容器，不影响其他 Docker 应用
 
 set -e
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+
+# 项目名称，用于隔离容器
+PROJECT_NAME="myblog"
+
+# MyBlog 容器名称列表
+MYBLOG_CONTAINERS=("myblog-backend" "myblog-frontend")
 
 # 检测 Docker Compose 命令
 if docker compose version > /dev/null 2>&1; then
@@ -20,6 +27,7 @@ else
 fi
 
 echo "🔄 检查代码更新..."
+echo "🏷️  项目名称: $PROJECT_NAME"
 
 # 保存当前分支
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -51,28 +59,36 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
-# 检查服务是否在运行
-if ! $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -q "Up"; then
-    echo "⚠️  服务未运行，将启动服务..."
-    $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d --build
+# 检查 MyBlog 服务是否在运行（只检查 myblog 项目的容器）
+MYBLOG_RUNNING=false
+for container in "${MYBLOG_CONTAINERS[@]}"; do
+    if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+        MYBLOG_RUNNING=true
+        break
+    fi
+done
+
+if [ "$MYBLOG_RUNNING" = false ]; then
+    echo "⚠️  MyBlog 服务未运行，将启动服务..."
+    $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" up -d --build
     echo "✅ 服务已启动"
     exit 0
 fi
 
-# 重新构建镜像
+# 重新构建镜像（只构建 myblog 项目的镜像）
 echo "🔨 重新构建 Docker 镜像..."
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" build --no-cache
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" build --no-cache
 
-# 重启服务
-echo "🔄 重启服务..."
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d
+# 重启服务（只重启 myblog 项目的容器）
+echo "🔄 重启 MyBlog 服务..."
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" up -d
 
 echo "⏳ 等待服务启动..."
 sleep 5
 
-# 检查服务状态
-echo "📊 服务状态："
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" ps
+# 检查服务状态（只显示 myblog 项目的容器）
+echo "📊 MyBlog 服务状态："
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" ps
 
 echo ""
 echo "✅ 更新完成！"
