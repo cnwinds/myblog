@@ -44,19 +44,71 @@ router.post('/embedding', authenticateToken, async (req, res) => {
 // 调用文生图模型生成图片（使用百炼接口）
 router.post('/image', authenticateToken, async (req, res) => {
   try {
-    const { prompt, width, height, n } = req.body;
+    const { prompt, width, height, aspectRatio, n } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    const response = await callImageGeneration(prompt, { width, height, n });
+    // 如果提供了 aspectRatio，转换为 width 和 height
+    let finalWidth = width;
+    let finalHeight = height;
+    
+    if (aspectRatio && !width && !height) {
+      const dimensions = convertAspectRatioToDimensions(aspectRatio);
+      finalWidth = dimensions.width;
+      finalHeight = dimensions.height;
+    }
+
+    const response = await callImageGeneration(prompt, { width: finalWidth, height: finalHeight, n });
     res.json(response);
   } catch (error: any) {
     console.error('Image generation call error:', error);
     res.status(500).json({ error: error.message || 'Failed to generate image' });
   }
 });
+
+/**
+ * 将宽高比转换为具体的宽高尺寸
+ * 百炼API推荐尺寸：
+ * - 3:4 (竖版) -> 768*1024
+ * - 9:16 (竖版) -> 720*1280
+ * - 16:9 (横版) -> 1280*720
+ * - 4:3 (横版) -> 1024*768
+ * - 1:1 (方图) -> 1024*1024
+ */
+function convertAspectRatioToDimensions(aspectRatio: string): { width: number; height: number } {
+  const ratio = aspectRatio.trim().toLowerCase();
+  
+  switch (ratio) {
+    case '3:4':
+      return { width: 768, height: 1024 };
+    case '9:16':
+      return { width: 720, height: 1280 };
+    case '16:9':
+      return { width: 1280, height: 720 };
+    case '4:3':
+      return { width: 1024, height: 768 };
+    case '1:1':
+      return { width: 1024, height: 1024 };
+    default:
+      // 尝试解析自定义比例，如 "2:3" -> 768*1152
+      const match = ratio.match(/^(\d+):(\d+)$/);
+      if (match) {
+        const w = parseInt(match[1], 10);
+        const h = parseInt(match[2], 10);
+        // 按比例计算，保持总像素在合理范围内（约 786432 像素，接近 1024*768）
+        const baseSize = 768;
+        const scale = baseSize / w;
+        return {
+          width: Math.round(w * scale),
+          height: Math.round(h * scale),
+        };
+      }
+      // 默认使用 3:4
+      return { width: 768, height: 1024 };
+  }
+}
 
 // 分析文章并生成图片提示词和位置信息
 router.post('/analyze-article-for-images', authenticateToken, async (req, res) => {
@@ -86,7 +138,7 @@ router.post('/analyze-article-for-images', authenticateToken, async (req, res) =
 # 视觉风格规范（重要）
 ## 基础设定
 - **图片类型**：信息图（Infographic）
-- **方向比例**：竖版，3:4 或 9:16
+- **方向比例**：横版，16:9 或 4:3
 - **整体风格**：卡通风格、手绘风格
 
 ## 背景与配色
@@ -106,6 +158,7 @@ router.post('/analyze-article-for-images', authenticateToken, async (req, res) =
 - **所有图像元素必须是手绘/卡通风格，禁止写实风格图画**
 
 ## 排版原则
+- **以图为主，文字为辅**：图片应占据主要视觉空间，文字仅作为辅助说明，不要出现大段的文字
 - 信息精简，突出关键词与核心概念
 - 多留白，易于一眼抓住重点
 - 要点分条呈现，层次清晰
@@ -117,16 +170,43 @@ router.post('/analyze-article-for-images', authenticateToken, async (req, res) =
 [
   {
     "index": 1,
-    "type": "封面图",
     "coreMessage": "这张图要传达的1句话核心",
-    "position": "文章开头",
+    "position": "[封面图 / 内容图 / 结尾图]",
     "title": "主标题",
     "subtitle": "副标题/要点",
     "description": "补充说明（如有）",
-    "prompt": "完整的图片生成提示词，包含所有视觉风格要求"
+    "prompt": "完整的图片生成提示词，包含所有视觉风格要求",
+    "aspectRatio": "16:9"
   }
 ]
 \`\`\`
+
+**prompt 字段格式要求**：
+prompt 字段必须包含完整的图片生成提示词，格式如下：
+
+小红书风格信息图，横版（16:9），卡通风格，手绘风格文字，[具体背景色]背景。
+
+[具体内容布局描述]
+
+加入简洁的卡通元素和图标增强趣味性和视觉记忆：[具体元素描述]
+
+整体风格：手绘、可爱、清新，信息精简，多留白，重点突出。以图为主，文字为辅，不要出现大段的文字。所有图像和文字均为手绘风格，无写实元素。
+
+    参考示例：
+    小红书风格信息图，横版（16:9），卡通风格，手绘风格文字，米白色（Cream）背景。
+
+    画面中心是一个戴眼镜、穿着衬衫的卡通中年男子形象（代表吴恩达），表情睿智亲切，手托下巴思考。
+    他的头顶上方有两个大大的问号气泡，一边写着“图灵测试？”，另一边写着“跑分刷榜？”。
+    主标题“AGI 到底来了没？”使用加粗的手绘艺术字，颜色醒目（如焦糖色）。
+    背景中有零星的星星和思考的光辉装饰。
+
+    整体风格：手绘、可爱、清新，信息精简，多留白，重点突出。以图为主，文字为辅，不要出现大段的文字。所有图像和文字均为手绘风格，无写实元素。
+
+**注意**：
+- aspectRatio 字段必须填写，表示图片的宽高比
+- 支持的格式：横版使用 "16:9" 或 "4:3"，竖版使用 "3:4" 或 "9:16"，方图使用 "1:1"
+- 默认使用 "16:9"（横版）
+- prompt 中的比例描述必须与 aspectRatio 字段一致
 
 # 语言规则
 - 除非特别要求，输出语言与输入内容语言保持一致
@@ -165,6 +245,161 @@ ${content}
   } catch (error: any) {
     console.error('Analyze article error:', error);
     res.status(500).json({ error: error.message || '分析文章失败' });
+  }
+});
+
+// 智能判断图片插入位置（单张图片）
+router.post('/find-image-position', authenticateToken, async (req, res) => {
+  try {
+    const { content, imageCoreMessage } = req.body;
+
+    if (!content || !imageCoreMessage) {
+      return res.status(400).json({ error: 'Content and imageCoreMessage are required' });
+    }
+
+    // 构建提示词，让大模型判断图片应该插入到文章的哪个位置
+    const prompt = `你是一位专业的内容编辑助手。请分析以下文章内容，判断一张图片应该插入到文章的哪个位置。
+
+文章内容：
+${content}
+
+图片说明（coreMessage）：${imageCoreMessage}
+
+**重要规则**：
+- 图片只能插入在段落之间（段落结束后的空行处）
+- 或者插入在句子之间（句号、问号、感叹号之后）
+- **绝对不能插入在一句话的中间**
+
+请根据图片说明与文章内容的匹配度，判断图片应该插入的位置。返回格式为JSON：
+{
+  "position": "开头" | "结尾" | "第X段后" | "第X句后",
+  "reason": "插入原因说明"
+}
+
+其中：
+- "开头"：插入到文章开头（第一个段落之前）
+- "结尾"：插入到文章结尾（最后一个段落之后）
+- "第X段后"：插入到第X个段落后（X为数字，从1开始，段落之间用空行分隔）
+- "第X句后"：插入到第X个句子后（X为数字，从1开始，句子以句号、问号、感叹号结尾）
+
+请只返回JSON，不要返回其他内容。`;
+
+    const response = await callLLM(prompt, { temperature: 0.3 });
+    
+    // 尝试解析JSON响应
+    let positionData;
+    try {
+      // 尝试从响应中提取JSON
+      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        positionData = JSON.parse(jsonMatch[0]);
+      } else {
+        positionData = JSON.parse(response.content);
+      }
+    } catch (parseError) {
+      // 如果解析失败，返回默认位置（结尾）
+      console.warn('Failed to parse position response:', parseError);
+      positionData = { position: '结尾', reason: '无法解析AI响应，默认插入到结尾' };
+    }
+
+    res.json({
+      position: positionData.position || '结尾',
+      reason: positionData.reason || 'AI判断的插入位置',
+    });
+  } catch (error: any) {
+    console.error('Find image position error:', error);
+    res.status(500).json({ error: error.message || 'Failed to find image position' });
+  }
+});
+
+// 批量智能判断多张图片插入位置（一次调用判断所有图片）
+router.post('/find-image-positions', authenticateToken, async (req, res) => {
+  try {
+    const { content, imageCoreMessages } = req.body;
+
+    if (!content || !Array.isArray(imageCoreMessages) || imageCoreMessages.length === 0) {
+      return res.status(400).json({ error: 'Content and imageCoreMessages array are required' });
+    }
+
+    // 构建提示词，让大模型一次性判断所有图片的插入位置
+    const messagesList = imageCoreMessages.map((msg: string, idx: number) => `图片${idx + 1}：${msg}`).join('\n');
+    
+    const prompt = `你是一位专业的内容编辑助手。请分析以下文章内容，判断多张图片应该插入到文章的哪个位置。
+
+文章内容：
+${content}
+
+图片说明列表：
+${messagesList}
+
+**重要规则**：
+- 图片只能插入在段落之间（段落结束后的空行处）
+- 或者插入在句子之间（句号、问号、感叹号之后）
+- **绝对不能插入在一句话的中间**
+- 每张图片的插入位置应该不同，避免重复
+
+请根据每张图片的说明与文章内容的匹配度，判断每张图片应该插入的位置。返回格式为JSON数组：
+[
+  {
+    "index": 1,
+    "position": "开头" | "结尾" | "第X段后" | "第X句后",
+    "reason": "插入原因说明"
+  },
+  {
+    "index": 2,
+    "position": "开头" | "结尾" | "第X段后" | "第X句后",
+    "reason": "插入原因说明"
+  }
+]
+
+其中：
+- "开头"：插入到文章开头（第一个段落之前）
+- "结尾"：插入到文章结尾（最后一个段落之后）
+- "第X段后"：插入到第X个段落后（X为数字，从1开始，段落之间用空行分隔）
+- "第X句后"：插入到第X个句子后（X为数字，从1开始，句子以句号、问号、感叹号结尾）
+
+请只返回JSON数组，不要返回其他内容。`;
+
+    const response = await callLLM(prompt, { temperature: 0.3 });
+    
+    // 尝试解析JSON响应
+    let positionsData;
+    try {
+      // 尝试从响应中提取JSON数组
+      const jsonMatch = response.content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        positionsData = JSON.parse(jsonMatch[0]);
+      } else {
+        positionsData = JSON.parse(response.content);
+      }
+      
+      // 确保返回的是数组
+      if (!Array.isArray(positionsData)) {
+        throw new Error('Response is not an array');
+      }
+    } catch (parseError) {
+      // 如果解析失败，为每张图片返回默认位置（结尾）
+      console.warn('Failed to parse positions response:', parseError);
+      positionsData = imageCoreMessages.map((_: string, idx: number) => ({
+        index: idx + 1,
+        position: '结尾',
+        reason: '无法解析AI响应，默认插入到结尾',
+      }));
+    }
+
+    // 确保返回的数组长度与输入的图片数量一致
+    const results = imageCoreMessages.map((_: string, idx: number) => {
+      const result = positionsData[idx] || positionsData.find((p: any) => p.index === idx + 1);
+      return {
+        position: result?.position || '结尾',
+        reason: result?.reason || 'AI判断的插入位置',
+      };
+    });
+
+    res.json({ positions: results });
+  } catch (error: any) {
+    console.error('Find image positions error:', error);
+    res.status(500).json({ error: error.message || 'Failed to find image positions' });
   }
 });
 

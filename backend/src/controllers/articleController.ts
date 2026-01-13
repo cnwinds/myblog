@@ -33,7 +33,7 @@ export function getArticle(req: Request, res: Response) {
 // 登录用户可以创建文章
 export function createArticle(req: AuthRequest, res: Response) {
   try {
-    const { title, content } = req.body;
+    const { title, content, imagePlans } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
@@ -47,6 +47,7 @@ export function createArticle(req: AuthRequest, res: Response) {
       title,
       content,
       authorId: req.userId,
+      imagePlans: imagePlans ? JSON.stringify(imagePlans) : undefined,
     });
 
     res.status(201).json(article);
@@ -60,13 +61,20 @@ export function createArticle(req: AuthRequest, res: Response) {
 export function updateArticle(req: AuthRequest, res: Response) {
   try {
     const id = parseInt(req.params.id);
-    const { title, content } = req.body;
+    const { title, content, imagePlans } = req.body;
 
     if (!req.userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const article = ArticleModel.update(id, { title, content }, req.userId);
+    const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (imagePlans !== undefined) {
+      updateData.imagePlans = imagePlans ? JSON.stringify(imagePlans) : null;
+    }
+
+    const article = ArticleModel.update(id, updateData, req.userId);
 
     if (!article) {
       return res.status(404).json({ error: 'Article not found or unauthorized' });

@@ -10,6 +10,7 @@ export default function EditorPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [imagePlans, setImagePlans] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -27,12 +28,38 @@ export default function EditorPage() {
       const article = await articleService.getArticle(articleId);
       setTitle(article.title);
       setContent(article.content);
+      // 解析并加载图片规划
+      if (article.imagePlans) {
+        try {
+          const plans = JSON.parse(article.imagePlans);
+          setImagePlans(Array.isArray(plans) ? plans : null);
+        } catch (e) {
+          console.warn('Failed to parse imagePlans:', e);
+          setImagePlans(null);
+        }
+      } else {
+        setImagePlans(null);
+      }
     } catch (error) {
       console.error('Failed to load article:', error);
       alert('加载文章失败');
       navigate('/');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveImagePlans = async (plans: any[]) => {
+    if (!isEdit || !id) return; // 只有编辑模式才保存
+    
+    try {
+      await articleService.updateArticle(parseInt(id), { 
+        imagePlans: plans 
+      });
+      setImagePlans(plans);
+    } catch (error) {
+      console.error('Failed to save image plans:', error);
+      // 不显示错误提示，避免打断用户操作
     }
   };
 
@@ -46,9 +73,17 @@ export default function EditorPage() {
     setSaving(true);
     try {
       if (isEdit && id) {
-        await articleService.updateArticle(parseInt(id), { title, content });
+        await articleService.updateArticle(parseInt(id), { 
+          title, 
+          content,
+          imagePlans: imagePlans || undefined,
+        });
       } else {
-        await articleService.createArticle({ title, content });
+        await articleService.createArticle({ 
+          title, 
+          content,
+          imagePlans: imagePlans || undefined,
+        });
       }
       navigate('/');
     } catch (error: any) {
@@ -99,6 +134,8 @@ export default function EditorPage() {
               onChange={setContent}
               placeholder="开始编写你的文章..."
               title={title}
+              imagePlans={imagePlans || undefined}
+              onSaveImagePlans={handleSaveImagePlans}
             />
           </div>
         </form>

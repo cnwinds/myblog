@@ -1,13 +1,15 @@
-import { useState } from 'react';
-import { FiImage, FiX, FiCheck, FiLoader } from 'react-icons/fi';
-import { analyzeArticleForImages, generateImage, ImagePlan } from '../../services/ai';
+import { useState, useEffect } from 'react';
+import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw } from 'react-icons/fi';
+import { analyzeArticleForImages, generateImage, findImagePositions, ImagePlan } from '../../services/ai';
 import { uploadService } from '../../services/upload';
 import './ImageGenerator.css';
 
 interface ImageGeneratorProps {
   title: string;
   content: string;
+  initialImagePlans?: ImagePlan[]; // 初始图片规划数据
   onInsertImages: (images: Array<{ markdown: string; position: string }>) => void;
+  onSaveImagePlans?: (imagePlans: ImagePlan[]) => void; // 保存图片规划的回调
   onClose: () => void;
 }
 
@@ -21,13 +23,30 @@ interface ImageGenerationTask {
 export default function ImageGenerator({
   title,
   content,
+  initialImagePlans,
   onInsertImages,
+  onSaveImagePlans,
   onClose,
 }: ImageGeneratorProps) {
   const [analyzing, setAnalyzing] = useState(false);
-  const [imagePlans, setImagePlans] = useState<ImagePlan[]>([]);
+  const [imagePlans, setImagePlans] = useState<ImagePlan[]>(initialImagePlans || []);
   const [generationTasks, setGenerationTasks] = useState<ImageGenerationTask[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [inserting, setInserting] = useState(false);
+
+  // 初始化：如果有初始图片规划，自动加载
+  useEffect(() => {
+    if (initialImagePlans && initialImagePlans.length > 0) {
+      setImagePlans(initialImagePlans);
+      setGenerationTasks(
+        initialImagePlans.map((plan) => ({
+          plan,
+          status: plan.imageUrl ? ('completed' as const) : ('pending' as const),
+          imageUrl: plan.imageUrl,
+        }))
+      );
+    }
+  }, [initialImagePlans]);
 
   // 分析文章
   const handleAnalyze = async () => {
@@ -47,12 +66,25 @@ export default function ImageGenerator({
           status: 'pending' as const,
         }))
       );
+      // 保存图片规划到文章
+      if (onSaveImagePlans) {
+        onSaveImagePlans(response.imagePlans);
+      }
     } catch (error: any) {
       console.error('分析文章失败:', error);
       alert(error.response?.data?.error || '分析文章失败，请重试');
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  // 重新生成图片规划
+  const handleRegenerate = async () => {
+    // 清除当前的图片规划和生成任务
+    setImagePlans([]);
+    setGenerationTasks([]);
+    // 重新分析文章
+    await handleAnalyze();
   };
 
   // 生成单张图片
@@ -62,14 +94,20 @@ export default function ImageGenerator({
 
     setGenerationTasks((prev) => {
       const newTasks = [...prev];
-      newTasks[index] = { ...newTasks[index], status: 'generating' };
+      newTasks[index] = { 
+        ...newTasks[index], 
+        status: 'generating',
+        imageUrl: undefined, // 清除旧的图片URL，重新生成
+        error: undefined, // 清除旧的错误信息
+      };
       return newTasks;
     });
 
     try {
+      // 使用 plan 中的 aspectRatio，如果没有则默认使用 16:9
+      const aspectRatio = task.plan.aspectRatio || '16:9';
       const response = await generateImage(task.plan.prompt, {
-        width: 768,
-        height: 1024, // 竖版 3:4
+        aspectRatio,
       });
 
       // 处理图片URL：如果是base64或data URL，需要先上传
@@ -140,6 +178,14 @@ export default function ImageGenerator({
           status: 'completed',
           imageUrl,
         };
+        // 保存更新后的图片规划（包含已生成的图片URL）
+        if (onSaveImagePlans) {
+          const updatedPlans = newTasks.map((task) => ({
+            ...task.plan,
+            imageUrl: task.imageUrl, // 添加已生成的图片URL
+          }));
+          onSaveImagePlans(updatedPlans);
+        }
         return newTasks;
       });
     } catch (error: any) {
@@ -168,27 +214,106 @@ export default function ImageGenerator({
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
+      // 生成完成后，保存所有图片规划
+      if (onSaveImagePlans) {
+        setGenerationTasks((currentTasks) => {
+          const updatedPlans = currentTasks.map((task) => ({
+            ...task.plan,
+            imageUrl: task.imageUrl,
+          }));
+          onSaveImagePlans(updatedPlans);
+          return currentTasks;
+        });
+      }
     } finally {
       setGenerating(false);
     }
   };
 
-  // 插入所有已生成的图片
-  const handleInsertAll = () => {
-    const imagesToInsert = generationTasks
-      .filter((task) => task.status === 'completed' && task.imageUrl)
-      .map((task) => ({
-        markdown: `![${task.plan.title}](${task.imageUrl})`,
-        position: task.plan.position,
-      }));
+  // 检查图片是否已经插入到文章中
+  const isImageAlreadyInserted = (imageUrl: string): boolean => {
+    // 检查文章内容中是否包含该图片URL
+    return content.includes(imageUrl);
+  };
 
-    if (imagesToInsert.length === 0) {
+  // 插入所有已生成的图片（智能插入）
+  const handleInsertAll = async () => {
+    const completedTasks = generationTasks.filter(
+      (task) => task.status === 'completed' && task.imageUrl
+    );
+
+    if (completedTasks.length === 0) {
       alert('没有可插入的图片，请先生成图片');
       return;
     }
 
-    onInsertImages(imagesToInsert);
-    onClose();
+    // 过滤掉已经插入的图片
+    const tasksToInsert = completedTasks.filter(
+      (task) => !isImageAlreadyInserted(task.imageUrl!)
+    );
+
+    if (tasksToInsert.length === 0) {
+      alert('所有图片已经插入到文章中了');
+      onClose();
+      return;
+    }
+
+    setInserting(true);
+
+    try {
+      // 一次性调用大模型判断所有图片的插入位置
+      const imageCoreMessages = tasksToInsert.map((task) => task.plan.coreMessage);
+      console.log('正在批量判断图片位置，共', imageCoreMessages.length, '张图片');
+      
+      let positionsResults: Array<{ position: string; reason: string }> = [];
+      
+      try {
+        const response = await findImagePositions(content, imageCoreMessages);
+        positionsResults = response.positions;
+        console.log('批量位置判断结果:', positionsResults);
+      } catch (error: any) {
+        console.error('批量判断图片位置失败:', error);
+        console.error('错误详情:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+        // 如果批量判断失败，为每张图片使用备用位置
+        positionsResults = tasksToInsert.map((task) => ({
+          position: task.plan.position || '结尾',
+          reason: '批量判断失败，使用原位置',
+        }));
+      }
+
+      // 构建图片插入数据
+      const imagesToInsert = tasksToInsert.map((task, index) => ({
+        markdown: `![${task.plan.coreMessage}](${task.imageUrl})`,
+        position: positionsResults[index]?.position || task.plan.position || '结尾',
+      }));
+
+      // 检查是否有有效的图片需要插入
+      if (imagesToInsert.length === 0) {
+        alert('没有可插入的图片');
+        return;
+      }
+
+      console.log('准备插入图片:', imagesToInsert);
+
+      // 调用插入函数（这是同步函数，不需要try-catch，但需要确保它不会抛出错误）
+      onInsertImages(imagesToInsert);
+      onClose();
+    } catch (error: any) {
+      console.error('插入图片失败:', error);
+      console.error('错误详情:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack,
+      });
+      alert(error.response?.data?.error || error.message || '插入图片失败，请重试');
+    } finally {
+      setInserting(false);
+    }
   };
 
   return (
@@ -228,6 +353,23 @@ export default function ImageGenerator({
               <div className="image-generator-actions">
                 <button
                   className="btn btn-primary"
+                  onClick={handleRegenerate}
+                  disabled={analyzing}
+                >
+                  {analyzing ? (
+                    <>
+                      <FiLoader className="spinning" />
+                      <span>重新生成中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiRefreshCw />
+                      <span>重新生成</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  className="btn btn-primary"
                   onClick={handleGenerateAll}
                   disabled={generating || generationTasks.every((t) => t.status !== 'pending')}
                 >
@@ -246,10 +388,19 @@ export default function ImageGenerator({
                 <button
                   className="btn btn-success"
                   onClick={handleInsertAll}
-                  disabled={!generationTasks.some((t) => t.status === 'completed')}
+                  disabled={!generationTasks.some((t) => t.status === 'completed') || inserting}
                 >
-                  <FiCheck />
-                  <span>插入所有已生成图片</span>
+                  {inserting ? (
+                    <>
+                      <FiLoader className="spinning" />
+                      <span>智能插入中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCheck />
+                      <span>智能插入图片</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -284,6 +435,14 @@ export default function ImageGenerator({
                           <span className="status-completed">
                             <FiCheck />
                             <span>已完成</span>
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleGenerateImage(index)}
+                              style={{ marginLeft: '8px' }}
+                            >
+                              <FiRefreshCw />
+                              <span>重新生成</span>
+                            </button>
                           </span>
                         )}
                         {task.status === 'error' && (
@@ -302,27 +461,51 @@ export default function ImageGenerator({
 
                     <div className="image-plan-details">
                       <div className="image-plan-text">
-                        <p>
-                          <strong>标题：</strong>
-                          {task.plan.title}
-                        </p>
-                        {task.plan.subtitle && (
-                          <p>
-                            <strong>副标题：</strong>
-                            {task.plan.subtitle}
-                          </p>
-                        )}
                         {task.plan.description && (
                           <p>
                             <strong>说明：</strong>
                             {task.plan.description}
                           </p>
                         )}
+                        {task.plan.prompt && (
+                          <div className="image-plan-prompt">
+                            <strong>生成提示词：</strong>
+                            <textarea
+                              className="prompt-content prompt-editable"
+                              value={task.plan.prompt}
+                              onChange={(e) => {
+                                const newPrompt = e.target.value;
+                                // 更新对应的plan
+                                setGenerationTasks((prev) => {
+                                  const newTasks = [...prev];
+                                  newTasks[index] = {
+                                    ...newTasks[index],
+                                    plan: {
+                                      ...newTasks[index].plan,
+                                      prompt: newPrompt,
+                                    },
+                                  };
+                                  // 保存更新后的图片规划
+                                  if (onSaveImagePlans) {
+                                    const updatedPlans = newTasks.map((t) => ({
+                                      ...t.plan,
+                                      imageUrl: t.imageUrl,
+                                    }));
+                                    onSaveImagePlans(updatedPlans);
+                                  }
+                                  return newTasks;
+                                });
+                              }}
+                              rows={6}
+                              placeholder="请输入图片生成提示词..."
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {task.status === 'completed' && task.imageUrl && (
                         <div className="image-plan-preview">
-                          <img src={task.imageUrl} alt={task.plan.title} />
+                          <img src={task.imageUrl} alt={task.plan.coreMessage} />
                         </div>
                       )}
 

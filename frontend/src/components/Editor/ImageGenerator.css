@@ -158,8 +158,6 @@
 
 .image-plan-details {
   margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
 }
 
 .image-plan-text {
@@ -176,6 +174,54 @@
 .image-plan-text strong {
   color: #333;
   font-weight: 600;
+}
+
+.image-plan-prompt {
+  margin-top: 12px;
+}
+
+.image-plan-prompt strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.prompt-content {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #555;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.prompt-editable {
+  width: 100%;
+  resize: vertical;
+  min-height: 120px;
+  border: 1px solid #d0d0d0;
+  background: #ffffff;
+  color: #333;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 12px;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.prompt-editable:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 
 .image-plan-preview {
@@ -294,12 +340,31 @@
     color: #e0e0e0;
   }
 
+
+  .image-plan-prompt strong {
+    color: #e0e0e0;
+  }
+
+  .prompt-content {
+    background: #2a2a2a;
+    border-color: #333;
+    color: #ccc;
+  }
+
+  .prompt-editable {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+
+  .prompt-editable:focus {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+  }
+
   .image-plan-preview {
     border-color: #333;
     background: #1f1f1f;
   }
 
-  .image-plan-details {
-    border-top-color: #333;
-  }
 }

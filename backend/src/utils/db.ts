@@ -23,11 +23,22 @@ export function initDatabase() {
       title TEXT NOT NULL,
       content TEXT NOT NULL,
       authorId INTEGER NOT NULL,
+      imagePlans TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (authorId) REFERENCES users(id)
     )
   `);
+
+  // 为现有表添加 imagePlans 字段（如果不存在）
+  try {
+    db.exec(`ALTER TABLE articles ADD COLUMN imagePlans TEXT`);
+  } catch (error: any) {
+    // 字段已存在，忽略错误
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Failed to add imagePlans column:', error.message);
+    }
+  }
 
   // 创建AI提供商表
   db.exec(`

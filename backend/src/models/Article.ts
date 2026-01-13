@@ -5,6 +5,7 @@ export interface Article {
   title: string;
   content: string;
   authorId: number;
+  imagePlans?: string; // JSON字符串，存储图片规划数据
   createdAt: string;
   updatedAt: string;
 }
@@ -13,11 +14,13 @@ export interface CreateArticleData {
   title: string;
   content: string;
   authorId: number;
+  imagePlans?: string;
 }
 
 export interface UpdateArticleData {
   title?: string;
   content?: string;
+  imagePlans?: string;
 }
 
 export class ArticleModel {
@@ -31,8 +34,8 @@ export class ArticleModel {
 
   static create(data: CreateArticleData): Article {
     const result = db
-      .prepare('INSERT INTO articles (title, content, authorId) VALUES (?, ?, ?)')
-      .run(data.title, data.content, data.authorId);
+      .prepare('INSERT INTO articles (title, content, authorId, imagePlans) VALUES (?, ?, ?, ?)')
+      .run(data.title, data.content, data.authorId, data.imagePlans || null);
     
     return this.findById(result.lastInsertRowid as number)!;
   }
@@ -53,6 +56,10 @@ export class ArticleModel {
     if (data.content !== undefined) {
       updates.push('content = ?');
       values.push(data.content);
+    }
+    if (data.imagePlans !== undefined) {
+      updates.push('imagePlans = ?');
+      values.push(data.imagePlans || null);
     }
 
     if (updates.length === 0) {

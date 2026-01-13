@@ -5,6 +5,7 @@ export interface Article {
   title: string;
   content: string;
   authorId: number;
+  imagePlans?: string; // JSON字符串，存储图片规划数据
   createdAt: string;
   updatedAt: string;
 }
@@ -12,11 +13,13 @@ export interface Article {
 export interface CreateArticleData {
   title: string;
   content: string;
+  imagePlans?: any; // 图片规划数据（对象数组）
 }
 
 export interface UpdateArticleData {
   title?: string;
   content?: string;
+  imagePlans?: any; // 图片规划数据（对象数组）
 }
 
 export const articleService = {
