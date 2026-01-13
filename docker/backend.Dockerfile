@@ -13,7 +13,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 # 安装构建工具和图片处理依赖
 # better-sqlite3 需要编译原生模块
 # sharp 需要 vips-dev 库
-RUN apk add --no-cache \
+RUN apk add \
     python3 \
     make \
     g++ \
@@ -46,7 +46,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 # 安装构建工具和运行时依赖
 # better-sqlite3 需要编译原生模块
 # sharp 需要 vips 库（运行时也需要）
-RUN apk add --no-cache \
+RUN apk add \
     python3 \
     make \
     g++ \
@@ -70,7 +70,7 @@ COPY --from=builder /app/dist ./dist
 RUN mkdir -p /app/uploads /app/data
 
 # 安装 wget 用于健康检查
-RUN apk add --no-cache wget
+RUN apk add wget && rm -rf /var/cache/apk/*
 
 # 暴露端口
 EXPOSE 3001
