@@ -66,7 +66,7 @@ echo 📊 服务状态：
 
 echo.
 echo ✅ 启动完成！
-echo 📱 前端地址: http://localhost
+echo 📱 前端地址: http://localhost:3000
 echo 🔧 后端地址: http://localhost:3001
 echo.
 echo 查看日志: %DOCKER_COMPOSE% -f docker\docker-compose.yml logs -f

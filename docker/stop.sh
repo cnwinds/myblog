@@ -23,3 +23,5 @@ echo "🛑 停止 MyBlog 应用..."
 $DOCKER_COMPOSE -f "$COMPOSE_FILE" down
 
 echo "✅ 服务已停止"
+echo "📱 前端地址: http://localhost:3000"
+echo "🔧 后端地址: http://localhost:3001"

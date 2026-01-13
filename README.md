@@ -59,7 +59,7 @@ chmod +x docker/update.sh
 ```
 
 访问应用：
-- 前端：http://localhost
+- 前端：http://localhost:3000
 - 后端 API：http://localhost:3001
 
 详细说明请查看 [docker/README.md](docker/README.md)

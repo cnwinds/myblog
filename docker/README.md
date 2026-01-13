@@ -42,7 +42,7 @@ docker compose -f docker/docker-compose.yml up -d --build
 
 ### 访问应用
 
-- 前端：http://localhost
+- 前端：http://localhost:3000
 - 后端 API：http://localhost:3001
 
 ## 常用命令

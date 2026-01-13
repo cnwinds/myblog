@@ -76,5 +76,5 @@ $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps
 
 echo ""
 echo "✅ 更新完成！"
-echo "📱 前端地址: http://localhost"
+echo "📱 前端地址: http://localhost:3000"
 echo "🔧 后端地址: http://localhost:3001"
