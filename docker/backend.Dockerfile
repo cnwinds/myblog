@@ -17,8 +17,7 @@ RUN apk add \
     python3 \
     make \
     g++ \
-    vips-dev \
-    && rm -rf /var/cache/apk/*
+    vips-dev
 
 # 复制 package 文件
 COPY backend/package*.json ./
@@ -51,8 +50,7 @@ RUN apk add \
     make \
     g++ \
     vips \
-    vips-dev \
-    && rm -rf /var/cache/apk/*
+    vips-dev
 
 # 复制 package 文件
 COPY backend/package*.json ./
@@ -70,7 +68,7 @@ COPY --from=builder /app/dist ./dist
 RUN mkdir -p /app/uploads /app/data
 
 # 安装 wget 用于健康检查
-RUN apk add wget && rm -rf /var/cache/apk/*
+RUN apk add wget
 
 # 暴露端口
 EXPOSE 3001
