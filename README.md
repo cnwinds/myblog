@@ -29,7 +29,7 @@ cp docker/.env.example docker/.env
 # 编辑 docker/.env，修改 JWT_SECRET
 
 # 2. 启动服务
-docker-compose -f docker/docker-compose.yml up -d --build
+docker compose -f docker/docker-compose.yml up -d --build
 
 # 或使用启动脚本（Linux/Mac）
 chmod +x docker/start.sh

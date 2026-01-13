@@ -1,7 +1,22 @@
 @echo off
 REM Docker 一键启动脚本 (Windows)
 
+REM 检测 Docker Compose 命令
+docker compose version >nul 2>&1
+if errorlevel 1 (
+    docker-compose version >nul 2>&1
+    if errorlevel 1 (
+        echo ❌ 未找到 Docker Compose，请先安装 Docker Compose
+        exit /b 1
+    ) else (
+        set DOCKER_COMPOSE=docker-compose
+    )
+) else (
+    set DOCKER_COMPOSE=docker compose
+)
+
 echo 🚀 启动 MyBlog 应用...
+echo 📦 使用: %DOCKER_COMPOSE%
 
 REM 检查 Docker 是否运行
 docker info >nul 2>&1
@@ -37,23 +52,23 @@ if not exist docker\.env (
 
 REM 构建并启动
 echo 🔨 构建镜像...
-docker-compose -f docker\docker-compose.yml build
+%DOCKER_COMPOSE% -f docker\docker-compose.yml build
 
 echo 🚀 启动服务...
-docker-compose -f docker\docker-compose.yml up -d
+%DOCKER_COMPOSE% -f docker\docker-compose.yml up -d
 
 echo ⏳ 等待服务启动...
 timeout /t 5 /nobreak >nul
 
 REM 检查服务状态
 echo 📊 服务状态：
-docker-compose -f docker\docker-compose.yml ps
+%DOCKER_COMPOSE% -f docker\docker-compose.yml ps
 
 echo.
 echo ✅ 启动完成！
 echo 📱 前端地址: http://localhost
 echo 🔧 后端地址: http://localhost:3001
 echo.
-echo 查看日志: docker-compose -f docker\docker-compose.yml logs -f
-echo 停止服务: docker-compose -f docker\docker-compose.yml down
+echo 查看日志: %DOCKER_COMPOSE% -f docker\docker-compose.yml logs -f
+echo 停止服务: %DOCKER_COMPOSE% -f docker\docker-compose.yml down
 pause

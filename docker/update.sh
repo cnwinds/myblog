@@ -5,6 +5,20 @@
 
 set -e
 
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+
+# 检测 Docker Compose 命令
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+elif docker-compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    echo "❌ 未找到 Docker Compose，请先安装 Docker Compose"
+    exit 1
+fi
+
 echo "🔄 检查代码更新..."
 
 # 保存当前分支
@@ -38,27 +52,27 @@ if ! docker info > /dev/null 2>&1; then
 fi
 
 # 检查服务是否在运行
-if ! docker-compose -f docker/docker-compose.yml ps | grep -q "Up"; then
+if ! $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps | grep -q "Up"; then
     echo "⚠️  服务未运行，将启动服务..."
-    docker-compose -f docker/docker-compose.yml up -d --build
+    $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d --build
     echo "✅ 服务已启动"
     exit 0
 fi
 
 # 重新构建镜像
 echo "🔨 重新构建 Docker 镜像..."
-docker-compose -f docker/docker-compose.yml build --no-cache
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" build --no-cache
 
 # 重启服务
 echo "🔄 重启服务..."
-docker-compose -f docker/docker-compose.yml up -d
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d
 
 echo "⏳ 等待服务启动..."
 sleep 5
 
 # 检查服务状态
 echo "📊 服务状态："
-docker-compose -f docker/docker-compose.yml ps
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" ps
 
 echo ""
 echo "✅ 更新完成！"

@@ -10,7 +10,18 @@ ENV_FILE="$SCRIPT_DIR/.env"
 ENV_EXAMPLE="$SCRIPT_DIR/.env.example"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 
+# 检测 Docker Compose 命令
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+elif docker-compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    echo "❌ 未找到 Docker Compose，请先安装 Docker Compose"
+    exit 1
+fi
+
 echo "🚀 启动 MyBlog 应用..."
+echo "📦 使用: $DOCKER_COMPOSE"
 
 # 检查 Docker 是否运行
 if ! docker info > /dev/null 2>&1; then
@@ -41,22 +52,22 @@ fi
 
 # 构建并启动
 echo "🔨 构建镜像..."
-docker-compose -f "$COMPOSE_FILE" build
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" build
 
 echo "🚀 启动服务..."
-docker-compose -f "$COMPOSE_FILE" up -d
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d
 
 echo "⏳ 等待服务启动..."
 sleep 5
 
 # 检查服务状态
 echo "📊 服务状态："
-docker-compose -f "$COMPOSE_FILE" ps
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" ps
 
 echo ""
 echo "✅ 启动完成！"
 echo "📱 前端地址: http://localhost"
 echo "🔧 后端地址: http://localhost:3001"
 echo ""
-echo "查看日志: docker-compose -f $COMPOSE_FILE logs -f"
-echo "停止服务: docker-compose -f $COMPOSE_FILE down"
+echo "查看日志: $DOCKER_COMPOSE -f $COMPOSE_FILE logs -f"
+echo "停止服务: $DOCKER_COMPOSE -f $COMPOSE_FILE down"

@@ -37,7 +37,7 @@ cp docker/.env.example docker/.env
 
 2. 构建并启动服务：
 ```bash
-docker-compose -f docker/docker-compose.yml up -d --build
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
 ### 访问应用
@@ -50,44 +50,44 @@ docker-compose -f docker/docker-compose.yml up -d --build
 ### 启动服务
 
 ```bash
-docker-compose -f docker/docker-compose.yml up -d
+docker compose -f docker/docker-compose.yml up -d
 ```
 
 ### 停止服务
 
 ```bash
-docker-compose -f docker/docker-compose.yml down
+docker compose -f docker/docker-compose.yml down
 ```
 
 ### 查看日志
 
 ```bash
 # 查看所有服务日志
-docker-compose -f docker/docker-compose.yml logs -f
+docker compose -f docker/docker-compose.yml logs -f
 
 # 查看后端日志
-docker-compose -f docker/docker-compose.yml logs -f backend
+docker compose -f docker/docker-compose.yml logs -f backend
 
 # 查看前端日志
-docker-compose -f docker/docker-compose.yml logs -f frontend
+docker compose -f docker/docker-compose.yml logs -f frontend
 ```
 
 ### 重启服务
 
 ```bash
-docker-compose -f docker/docker-compose.yml restart
+docker compose -f docker/docker-compose.yml restart
 ```
 
 ### 重新构建镜像
 
 ```bash
-docker-compose -f docker/docker-compose.yml build --no-cache
+docker compose -f docker/docker-compose.yml build --no-cache
 ```
 
 ### 查看服务状态
 
 ```bash
-docker-compose -f docker/docker-compose.yml ps
+docker compose -f docker/docker-compose.yml ps
 ```
 
 ### 更新应用
@@ -123,7 +123,7 @@ chmod +x docker/update.sh
 即使删除容器，数据也会保留。要删除所有数据，需要删除 volumes：
 
 ```bash
-docker-compose -f docker/docker-compose.yml down -v
+docker compose -f docker/docker-compose.yml down -v
 ```
 
 ## 创建初始用户

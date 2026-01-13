@@ -2,6 +2,20 @@
 REM Docker 更新脚本 (Windows)
 REM 从 git 拉取最新代码，如果有更新则重新构建并重启服务
 
+REM 检测 Docker Compose 命令
+docker compose version >nul 2>&1
+if errorlevel 1 (
+    docker-compose version >nul 2>&1
+    if errorlevel 1 (
+        echo ❌ 未找到 Docker Compose，请先安装 Docker Compose
+        exit /b 1
+    ) else (
+        set DOCKER_COMPOSE=docker-compose
+    )
+) else (
+    set DOCKER_COMPOSE=docker compose
+)
+
 echo 🔄 检查代码更新...
 
 REM 检查是否在 git 仓库中
@@ -47,17 +61,17 @@ if errorlevel 1 (
 )
 
 REM 检查服务是否在运行
-docker-compose -f docker\docker-compose.yml ps | findstr "Up" >nul
+%DOCKER_COMPOSE% -f docker\docker-compose.yml ps | findstr "Up" >nul
 if errorlevel 1 (
     echo ⚠️  服务未运行，将启动服务...
-    docker-compose -f docker\docker-compose.yml up -d --build
+    %DOCKER_COMPOSE% -f docker\docker-compose.yml up -d --build
     echo ✅ 服务已启动
     exit /b 0
 )
 
 REM 重新构建镜像
 echo 🔨 重新构建 Docker 镜像...
-docker-compose -f docker\docker-compose.yml build --no-cache
+%DOCKER_COMPOSE% -f docker\docker-compose.yml build --no-cache
 if errorlevel 1 (
     echo ❌ 构建失败
     exit /b 1
@@ -65,7 +79,7 @@ if errorlevel 1 (
 
 REM 重启服务
 echo 🔄 重启服务...
-docker-compose -f docker\docker-compose.yml up -d
+%DOCKER_COMPOSE% -f docker\docker-compose.yml up -d
 if errorlevel 1 (
     echo ❌ 重启失败
     exit /b 1
@@ -76,7 +90,7 @@ timeout /t 5 /nobreak >nul
 
 REM 检查服务状态
 echo 📊 服务状态：
-docker-compose -f docker\docker-compose.yml ps
+%DOCKER_COMPOSE% -f docker\docker-compose.yml ps
 
 echo.
 echo ✅ 更新完成！
