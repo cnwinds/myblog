@@ -40,7 +40,7 @@ interface OpenAIEmbeddingResponse {
   }>;
 }
 
-// 百炼文生图 API 响应类型
+// 百炼文生图 API 响应类型（支持两种格式）
 interface DashScopeImageResponse {
   output?: {
     results?: Array<{
@@ -48,8 +48,22 @@ interface DashScopeImageResponse {
       image_url?: string;
       image_base64?: string;
       image?: string;
+      // 新API格式可能返回的字段
+      content?: Array<{
+        image?: string;
+        image_url?: string;
+      }>;
     }>;
     task_id?: string;
+    // 新API格式直接返回在output中
+    choices?: Array<{
+      message?: {
+        content?: Array<{
+          image?: string;
+          image_url?: string;
+        }>;
+      };
+    }>;
   };
 }
 
@@ -203,19 +217,32 @@ export async function callImageGeneration(
   }
 
   // 百炼API地址
-  // 默认使用阿里云百炼的API地址 (DashScope)
-  const apiBase = provider.apiBase || 'https://dashscope.aliyuncs.com';
+  // 支持两种配置方式：
+  // 1. 完整URL：https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+  // 2. 基础域名：https://dashscope.aliyuncs.com（会自动拼接默认路径）
+  let apiUrl = provider.apiBase || 'https://dashscope.aliyuncs.com';
+  
+  // 检查是否已经包含完整路径
+  if (!apiUrl.includes('/api/v1/services/aigc/')) {
+    // 如果没有完整路径，使用新的 multimodal-generation API
+    try {
+      const url = new URL(apiUrl);
+      apiUrl = `${url.protocol}//${url.host}/api/v1/services/aigc/multimodal-generation/generation`;
+    } catch {
+      // 如果解析失败，使用正则表达式清理后拼接
+      apiUrl = apiUrl.replace(/\/.*$/, '').replace(/\/$/, '');
+      apiUrl = `${apiUrl}/api/v1/services/aigc/multimodal-generation/generation`;
+    }
+  }
+  
   const model = setting.model;
-
-  // 百炼文生图API调用
-  // 参考文档: https://bailian.console.aliyun.com/cn-beijing/?tab=api#/api/?type=model&url=3002354
-  // 百炼使用 DashScope API，支持同步和异步调用
   const size = options?.width && options?.height 
     ? `${options.width}*${options.height}`
     : '1024*1024';
 
-  // 先尝试同步调用（不设置 X-DashScope-Async 头）
-  const response = await fetch(`${apiBase}/api/v1/services/aigc/text2image/image-synthesis`, {
+  // 使用新的 multimodal-generation API 格式
+  // 参考文档: https://help.aliyun.com/zh/model-studio/z-image-api-reference
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -224,11 +251,20 @@ export async function callImageGeneration(
     body: JSON.stringify({
       model,
       input: {
-        prompt,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
       },
       parameters: {
         size,
-        n: options?.n || 1,
+        prompt_extend: false,
       },
     }),
   });
@@ -245,13 +281,55 @@ export async function callImageGeneration(
     throw new Error(errorMessage);
   }
 
-  const data = await response.json() as DashScopeImageResponse;
+  const data = await response.json() as any;
   
-  // 百炼API返回格式处理
-  // 同步调用：直接返回结果在 output.results 中
+  // 百炼API返回格式处理（支持多种响应格式）
+  
+  // 格式1: output.choices (新API格式 - multimodal-generation/generation)
+  // 响应格式: { output: { choices: [{ message: { content: [{ image: "...", image_url: "..." }] } }] } }
+  if (data.output?.choices && data.output.choices.length > 0) {
+    const choice = data.output.choices[0];
+    if (choice.message?.content && Array.isArray(choice.message.content)) {
+      // 查找包含图片的content项
+      for (const contentItem of choice.message.content) {
+        if (contentItem.image || contentItem.image_url) {
+          let imageUrl = '';
+          let imageBase64: string | undefined = undefined;
+          
+          // 优先使用 image_url（通常是 URL）
+          if (contentItem.image_url) {
+            imageUrl = contentItem.image_url;
+          }
+          
+          // 处理 image 字段：可能是 URL 也可能是 base64
+          if (contentItem.image) {
+            const imageValue = contentItem.image;
+            // 判断是 URL 还是 base64
+            const isUrl = imageValue.startsWith('http://') || imageValue.startsWith('https://');
+            
+            if (isUrl) {
+              // 如果是 URL，且 imageUrl 为空，则使用它
+              if (!imageUrl) {
+                imageUrl = imageValue;
+              }
+            } else {
+              // 如果是 base64，放在 imageBase64 中
+              imageBase64 = imageValue;
+            }
+          }
+          
+          return {
+            imageUrl,
+            imageBase64,
+          };
+        }
+      }
+    }
+  }
+  
+  // 格式2: output.results (旧格式 - text2image/image-synthesis)
   if (data.output?.results && data.output.results.length > 0) {
     const result = data.output.results[0];
-    // 百炼返回的图片URL或base64
     return {
       imageUrl: result.url || result.image_url || '',
       imageBase64: result.image_base64 || result.image,
@@ -260,10 +338,10 @@ export async function callImageGeneration(
 
   // 如果返回task_id，说明是异步任务
   if (data.output?.task_id) {
-    // 异步任务需要轮询，这里先抛出错误提示
-    // 实际使用时可以实现轮询逻辑
     throw new Error(`Async task created. Task ID: ${data.output.task_id}. Please implement polling logic.`);
   }
 
-  throw new Error('Invalid response from image generation API: ' + JSON.stringify(data));
+  // 调试：输出实际响应以便排查
+  console.error('Unexpected API response format:', JSON.stringify(data).substring(0, 500));
+  throw new Error('Invalid response from image generation API: ' + JSON.stringify(data).substring(0, 200));
 }

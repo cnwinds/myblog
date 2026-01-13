@@ -75,31 +75,62 @@ export default function ImageGenerator({
       // 处理图片URL：如果是base64或data URL，需要先上传
       let imageUrl = response.imageUrl;
       
-      // 检查是否是base64格式（data URL或纯base64字符串）
-      const isBase64 = response.imageBase64 || 
-                       (imageUrl && (imageUrl.startsWith('data:image/') || imageUrl.length > 1000));
+      // 检查是否是base64格式
+      // 优先检查 response.imageBase64，其次检查 imageUrl 是否是 data URL
+      const hasBase64 = !!response.imageBase64;
+      const isDataUrl = imageUrl && imageUrl.startsWith('data:image/');
       
-      if (isBase64) {
-        // 将base64转换为blob并上传
-        const base64Data = response.imageBase64 || 
-                          (imageUrl?.startsWith('data:image/') 
-                            ? imageUrl.split(',')[1] 
-                            : imageUrl);
-        
-        if (base64Data) {
-          const base64String = base64Data.replace(/^data:image\/\w+;base64,/, '');
-          const byteCharacters = atob(base64String);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
+      if (hasBase64 || isDataUrl) {
+        try {
+          // 获取 base64 数据
+          let base64Data: string | undefined;
+          
+          if (response.imageBase64) {
+            // 如果直接提供了 base64 字段
+            base64Data = response.imageBase64;
+          } else if (isDataUrl && imageUrl) {
+            // 从 data URL 中提取 base64 部分
+            const commaIndex = imageUrl.indexOf(',');
+            if (commaIndex !== -1) {
+              base64Data = imageUrl.substring(commaIndex + 1);
+            }
           }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: 'image/png' });
-          const file = new File([blob], `generated-image-${index}-${Date.now()}.png`, { 
-            type: 'image/png' 
-          });
-          imageUrl = await uploadService.uploadImage(file);
+          
+          if (base64Data) {
+            // 清理 base64 字符串（移除可能的空白字符和前缀）
+            const base64String = base64Data
+              .replace(/^data:image\/\w+;base64,/, '')
+              .replace(/\s/g, ''); // 移除所有空白字符
+            
+            // 验证 base64 格式
+            if (base64String && /^[A-Za-z0-9+/=]+$/.test(base64String)) {
+              const byteCharacters = atob(base64String);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: 'image/png' });
+              const file = new File([blob], `generated-image-${index}-${Date.now()}.png`, { 
+                type: 'image/png' 
+              });
+              imageUrl = await uploadService.uploadImage(file);
+            } else {
+              console.warn('无效的 base64 格式，跳过转换，直接使用 imageUrl');
+            }
+          }
+        } catch (error) {
+          console.error('Base64 转换失败:', error);
+          // 如果转换失败，尝试直接使用 imageUrl（可能是普通 URL）
+          if (!imageUrl) {
+            throw new Error('无法获取图片 URL');
+          }
         }
+      }
+      
+      // 确保最终有有效的 imageUrl
+      if (!imageUrl) {
+        throw new Error('未获取到有效的图片 URL');
       }
 
       setGenerationTasks((prev) => {
