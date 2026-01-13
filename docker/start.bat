@@ -13,7 +13,24 @@ if errorlevel 1 (
 REM 检查是否存在 .env 文件
 if not exist docker\.env (
     echo 📝 创建环境变量文件...
-    copy docker\.env.example docker\.env
+    if exist docker\.env.example (
+        copy docker\.env.example docker\.env
+    ) else (
+        REM 如果 .env.example 不存在，直接创建 .env 文件
+        (
+            echo # JWT 密钥（生产环境请务必修改）
+            echo JWT_SECRET=your-secret-key-change-in-production
+            echo.
+            echo # 后端端口（默认 3001）
+            echo PORT=3001
+            echo.
+            echo # 数据库路径（容器内路径，无需修改）
+            echo DB_PATH=/app/data/blog.db
+            echo.
+            echo # 上传目录（容器内路径，无需修改）
+            echo UPLOAD_DIR=/app/uploads
+        ) > docker\.env
+    )
     echo ⚠️  请编辑 docker\.env 文件，修改 JWT_SECRET
     pause
 )
