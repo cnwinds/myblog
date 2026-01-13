@@ -4,6 +4,7 @@ import { callLLM, callEmbedding, callImageGeneration } from '../services/aiServi
 
 const router = Router();
 
+// 登录用户可以访问AI功能
 // 调用大模型生成内容（使用OpenAI兼容模式）
 router.post('/llm', authenticateToken, async (req, res) => {
   try {
@@ -21,6 +22,7 @@ router.post('/llm', authenticateToken, async (req, res) => {
   }
 });
 
+// 登录用户可以访问AI功能
 // 调用向量模型生成嵌入（使用OpenAI兼容模式）
 router.post('/embedding', authenticateToken, async (req, res) => {
   try {
@@ -38,6 +40,7 @@ router.post('/embedding', authenticateToken, async (req, res) => {
   }
 });
 
+// 登录用户可以访问AI功能
 // 调用文生图模型生成图片（使用百炼接口）
 router.post('/image', authenticateToken, async (req, res) => {
   try {

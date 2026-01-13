@@ -1,8 +1,9 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { ArticleModel } from '../models/Article';
 
-export function getArticles(req: AuthRequest, res: Response) {
+// 未登录用户可以查看文章（只读）
+export function getArticles(req: Request, res: Response) {
   try {
     const articles = ArticleModel.findAll();
     res.json(articles);
@@ -12,7 +13,8 @@ export function getArticles(req: AuthRequest, res: Response) {
   }
 }
 
-export function getArticle(req: AuthRequest, res: Response) {
+// 未登录用户可以查看文章详情（只读）
+export function getArticle(req: Request, res: Response) {
   try {
     const id = parseInt(req.params.id);
     const article = ArticleModel.findById(id);
@@ -28,6 +30,7 @@ export function getArticle(req: AuthRequest, res: Response) {
   }
 }
 
+// 登录用户可以创建文章
 export function createArticle(req: AuthRequest, res: Response) {
   try {
     const { title, content } = req.body;
@@ -53,6 +56,7 @@ export function createArticle(req: AuthRequest, res: Response) {
   }
 }
 
+// 登录用户可以更新文章
 export function updateArticle(req: AuthRequest, res: Response) {
   try {
     const id = parseInt(req.params.id);
@@ -75,6 +79,7 @@ export function updateArticle(req: AuthRequest, res: Response) {
   }
 }
 
+// 登录用户可以删除文章
 export function deleteArticle(req: AuthRequest, res: Response) {
   try {
     const id = parseInt(req.params.id);

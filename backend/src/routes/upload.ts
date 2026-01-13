@@ -49,6 +49,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB限制
 });
 
+// 登录用户可以上传图片
 router.post('/image', authenticateToken, upload.single('image'), uploadImage);
 
 export default router;

@@ -11,6 +11,7 @@ import { getSettings, saveSettings } from '../controllers/settingsController';
 
 const router = Router();
 
+// 登录用户可以访问系统设置功能
 // 提供商管理
 router.get('/providers', authenticateToken, getProviders);
 router.get('/providers/:id', authenticateToken, getProvider);
