@@ -50,7 +50,8 @@ RUN apk add \
     make \
     g++ \
     vips \
-    vips-dev
+    vips-dev \
+    wget
 
 # 复制 package 文件
 COPY backend/package*.json ./
@@ -58,17 +59,11 @@ COPY backend/package*.json ./
 # 安装生产依赖（better-sqlite3 需要编译）
 RUN npm ci --only=production
 
-# 清理构建工具以减小镜像大小（保留 vips 运行时库）
-RUN apk del python3 make g++ vips-dev || true
-
 # 复制构建产物
 COPY --from=builder /app/dist ./dist
 
 # 创建上传目录和数据目录
 RUN mkdir -p /app/uploads /app/data
-
-# 安装 wget 用于健康检查
-RUN apk add wget
 
 # 暴露端口
 EXPOSE 3001

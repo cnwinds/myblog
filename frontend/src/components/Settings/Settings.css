@@ -328,6 +328,14 @@ input:checked + .slider:before {
   cursor: not-allowed;
 }
 
+.form-hint {
+  display: block;
+  margin-top: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
 .model-input-group {
   display: flex;
   gap: var(--spacing-sm);

@@ -109,7 +109,9 @@ async function callProviderAPI(
   }
 
   // 大模型和向量模型使用OpenAI兼容模式
-  const apiBase = provider.apiBase || 'https://api.openai.com';
+  let apiBase = provider.apiBase || 'https://api.openai.com';
+  // 移除末尾的 /v1（如果存在），因为后面会添加
+  apiBase = apiBase.replace(/\/v1\/?$/, '');
   const response = await fetch(`${apiBase}/v1/chat/completions`, {
     method: 'POST',
     headers: {
@@ -146,7 +148,9 @@ async function callEmbeddingAPI(provider: Provider, model: string, text: string)
   }
 
   // 使用OpenAI兼容模式
-  const apiBase = provider.apiBase || 'https://api.openai.com';
+  let apiBase = provider.apiBase || 'https://api.openai.com';
+  // 移除末尾的 /v1（如果存在），因为后面会添加
+  apiBase = apiBase.replace(/\/v1\/?$/, '');
   const response = await fetch(`${apiBase}/v1/embeddings`, {
     method: 'POST',
     headers: {

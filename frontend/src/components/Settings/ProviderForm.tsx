@@ -15,7 +15,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
   const [name, setName] = useState('');
   const [type, setType] = useState<'llm' | 'embedding' | 'both' | 'image'>(defaultType || 'llm');
   const [apiKey, setApiKey] = useState('');
-  const [apiBase, setApiBase] = useState('https://api.openai.com/v1');
+  const [apiBase, setApiBase] = useState('https://api.openai.com');
   const [llmModels, setLlmModels] = useState('');
   const [embeddingModels, setEmbeddingModels] = useState('');
   const [imageModels, setImageModels] = useState('');
@@ -29,7 +29,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
       setName(provider.name);
       setType(provider.type);
       setApiKey(provider.apiKey || '');
-      setApiBase(provider.apiBase || 'https://api.openai.com/v1');
+      setApiBase(provider.apiBase || 'https://api.openai.com');
       setEnabled(provider.enabled);
       
       // 根据类型分离模型
@@ -245,10 +245,13 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
               type="text"
               value={apiBase}
               onChange={(e) => setApiBase(e.target.value)}
-              placeholder="https://api.openai.com/v1"
+              placeholder="https://api.openai.com"
               required
               disabled={loading}
             />
+            <small className="form-hint">
+              请输入基础URL（不包含 /v1），例如：https://api.openai.com
+            </small>
           </div>
 
           {(type === 'llm' || type === 'both') && (

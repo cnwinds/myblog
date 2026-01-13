@@ -98,6 +98,7 @@ export default function EditorPage() {
               value={content}
               onChange={setContent}
               placeholder="开始编写你的文章..."
+              title={title}
             />
           </div>
         </form>

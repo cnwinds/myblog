@@ -47,3 +47,45 @@
 .editor-content .w-md-editor-text-pre .code-line {
   color: var(--color-text-primary);
 }
+
+/* 修复标题颜色对比度问题 */
+.editor-content .w-md-editor-text h1,
+.editor-content .w-md-editor-text h2,
+.editor-content .w-md-editor-text h3,
+.editor-content .w-md-editor-text h4,
+.editor-content .w-md-editor-text h5,
+.editor-content .w-md-editor-text h6 {
+  color: var(--color-text-primary) !important;
+  font-weight: 600;
+}
+
+/* 确保在深色主题下标题有足够的对比度 */
+[data-theme='dark'] .editor-content .w-md-editor-text h1,
+[data-theme='dark'] .editor-content .w-md-editor-text h2,
+[data-theme='dark'] .editor-content .w-md-editor-text h3,
+[data-theme='dark'] .editor-content .w-md-editor-text h4,
+[data-theme='dark'] .editor-content .w-md-editor-text h5,
+[data-theme='dark'] .editor-content .w-md-editor-text h6 {
+  color: #ffffff !important;
+}
+
+/* 浅色主题下的标题样式 */
+[data-theme='light'] .editor-content .w-md-editor-text h1,
+[data-theme='light'] .editor-content .w-md-editor-text h2,
+[data-theme='light'] .editor-content .w-md-editor-text h3,
+[data-theme='light'] .editor-content .w-md-editor-text h4,
+[data-theme='light'] .editor-content .w-md-editor-text h5,
+[data-theme='light'] .editor-content .w-md-editor-text h6 {
+  color: #1a1a1a !important;
+}
+
+/* 确保所有文本都有足够的对比度 */
+.editor-content .w-md-editor-text {
+  color: var(--color-text-primary) !important;
+}
+
+.editor-content .w-md-editor-text p,
+.editor-content .w-md-editor-text li,
+.editor-content .w-md-editor-text span {
+  color: var(--color-text-primary) !important;
+}
