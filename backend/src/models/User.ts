@@ -37,11 +37,22 @@ export class UserModel {
   ): Promise<User | null> {
     const user = this.findByUsername(username);
     if (!user) {
+      console.log('[verifyPassword] 用户不存在:', username);
       return null;
     }
 
-    const isValid = await comparePassword(password, user.password);
-    return isValid ? user : null;
+    try {
+      const isValid = await comparePassword(password, user.password);
+      console.log('[verifyPassword] 密码验证结果:', isValid, {
+        username,
+        passwordHashPrefix: user.password.substring(0, 20),
+        passwordLength: password.length
+      });
+      return isValid ? user : null;
+    } catch (error) {
+      console.error('[verifyPassword] 密码验证出错:', error);
+      return null;
+    }
   }
 
   static async updatePassword(userId: number, newPassword: string): Promise<boolean> {

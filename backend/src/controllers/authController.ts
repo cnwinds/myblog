@@ -17,10 +17,23 @@ export async function login(req: Request, res: Response) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
+    // 添加调试日志
+    console.log('[Login] 尝试登录:', { username, passwordLength: password.length });
+    
     const user = await UserModel.verifyPassword(username, password);
+    
     if (!user) {
+      console.log('[Login] 验证失败 - 用户不存在或密码错误');
+      // 检查用户是否存在
+      const userExists = UserModel.findByUsername(username);
+      console.log('[Login] 用户是否存在:', !!userExists);
+      if (userExists) {
+        console.log('[Login] 用户密码哈希前缀:', userExists.password.substring(0, 20));
+      }
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    
+    console.log('[Login] 验证成功:', { userId: user.id, username: user.username });
 
     const token = jwt.sign({ userId: user.id, username: user.username }, getJwtSecret(), {
       expiresIn: '7d',
