@@ -15,8 +15,8 @@ services:
       - UPLOAD_DIR=/app/uploads
     volumes:
       # 数据持久化
-      - backend-data:/app/data
-      - backend-uploads:/app/uploads
+      - ./backend-data:/app/data
+      - ./backend-uploads:/app/uploads
     networks:
       - myblog-network
     healthcheck:
@@ -43,12 +43,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-volumes:
-  backend-data:
-    driver: local
-  backend-uploads:
-    driver: local
 
 networks:
   myblog-network:

@@ -30,7 +30,23 @@ export default function ArticleDetail() {
   };
 
   const handleDelete = async () => {
-    if (!article || !window.confirm('确定要删除这篇文章吗？')) {
+    if (!article) {
+      return;
+    }
+
+    // 第一次确认
+    const firstConfirm = window.confirm(
+      `确定要删除文章《${article.title}》吗？\n\n此操作不可撤销！`
+    );
+    if (!firstConfirm) {
+      return;
+    }
+
+    // 第二次确认
+    const secondConfirm = window.confirm(
+      `请再次确认：您真的要删除文章《${article.title}》吗？\n\n删除后将无法恢复！`
+    );
+    if (!secondConfirm) {
       return;
     }
 
