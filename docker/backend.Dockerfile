@@ -1,7 +1,14 @@
 # 后端 Dockerfile
-FROM node:20-alpine AS builder
+# 使用渡渡鸟（docker.aityp.com）提供的华为云镜像加速
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:20-alpine AS builder
 
 WORKDIR /app
+
+# 设置 npm 使用淘宝镜像源加速
+RUN npm config set registry https://registry.npmmirror.com
+
+# 设置 apk 使用阿里云镜像源加速
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 复制 package 文件
 COPY backend/package*.json ./
@@ -16,9 +23,15 @@ COPY backend/ ./
 RUN npm run build
 
 # 生产环境镜像
-FROM node:20-alpine
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:20-alpine
 
 WORKDIR /app
+
+# 设置 npm 使用淘宝镜像源加速
+RUN npm config set registry https://registry.npmmirror.com
+
+# 设置 apk 使用阿里云镜像源加速
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 安装生产依赖
 COPY backend/package*.json ./
@@ -30,11 +43,11 @@ COPY --from=builder /app/dist ./dist
 # 创建上传目录和数据目录
 RUN mkdir -p /app/uploads /app/data
 
-# 暴露端口
-EXPOSE 3001
-
 # 安装 wget 用于健康检查
 RUN apk add --no-cache wget
+
+# 暴露端口
+EXPOSE 3001
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

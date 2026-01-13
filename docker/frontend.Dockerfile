@@ -1,7 +1,14 @@
 # 前端 Dockerfile
-FROM node:20-alpine AS builder
+# 使用渡渡鸟（docker.aityp.com）提供的华为云镜像加速
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:20-alpine AS builder
 
 WORKDIR /app
+
+# 设置 npm 使用淘宝镜像源加速
+RUN npm config set registry https://registry.npmmirror.com
+
+# 设置 apk 使用阿里云镜像源加速
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 复制 package 文件
 COPY frontend/package*.json ./
@@ -16,7 +23,10 @@ COPY frontend/ ./
 RUN npm run build
 
 # 生产环境镜像 - 使用 nginx 提供静态文件
-FROM nginx:alpine
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:alpine
+
+# 设置 apk 使用阿里云镜像源加速
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 复制构建产物到 nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
