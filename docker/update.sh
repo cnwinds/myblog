@@ -77,7 +77,7 @@ fi
 
 # 重新构建镜像（只构建 myblog 项目的镜像）
 echo "🔨 重新构建 Docker 镜像..."
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" build --no-cache
+$DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" build
 
 # 重启服务（只重启 myblog 项目的容器）
 echo "🔄 重启 MyBlog 服务..."
