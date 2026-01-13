@@ -1,0 +1,53 @@
+version: '3.8'
+
+# 开发环境配置
+# 使用方式: docker-compose -f docker/docker-compose.dev.yml up
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: myblog-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key}
+      - DB_PATH=/app/data/blog.db
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      # 挂载源代码以便热重载
+      - ../backend/src:/app/src
+      - ../backend/tsconfig.json:/app/tsconfig.json
+      # 数据持久化
+      - backend-data-dev:/app/data
+      - backend-uploads-dev:/app/uploads
+    networks:
+      - myblog-network-dev
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+    container_name: myblog-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - myblog-network-dev
+
+volumes:
+  backend-data-dev:
+    driver: local
+  backend-uploads-dev:
+    driver: local
+
+networks:
+  myblog-network-dev:
+    driver: bridge

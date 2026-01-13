@@ -17,6 +17,75 @@
 - @uiw/react-md-editor (Markdown编辑器)
 - React Markdown (Markdown渲染)
 
+## 快速开始
+
+### 方式一：Docker 部署（推荐）
+
+使用 Docker Compose 一键部署：
+
+```bash
+# 1. 配置环境变量
+cp docker/.env.example docker/.env
+# 编辑 docker/.env，修改 JWT_SECRET
+
+# 2. 启动服务
+docker-compose -f docker/docker-compose.yml up -d --build
+
+# 或使用启动脚本（Linux/Mac）
+chmod +x docker/start.sh
+./docker/start.sh
+```
+
+### 更新应用
+
+当代码有更新时，可以使用更新脚本自动拉取代码并重新部署：
+
+**Windows 用户：**
+```bash
+docker\update.bat
+```
+
+**Linux/Mac 用户：**
+```bash
+chmod +x docker/update.sh
+./docker/update.sh
+```
+
+更新脚本会自动：
+1. 从 git 拉取最新代码
+2. 检测是否有更新
+3. 如果有更新，重新构建 Docker 镜像
+4. 重启服务
+```
+
+访问应用：
+- 前端：http://localhost
+- 后端 API：http://localhost:3001
+
+详细说明请查看 [docker/README.md](docker/README.md)
+
+### 方式二：本地开发
+
+#### 后端
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+后端服务运行在 http://localhost:3001
+
+#### 前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+前端服务运行在 http://localhost:3000
+
 ## 项目结构
 
 ```
@@ -28,6 +97,12 @@ myblog/
 │   │   ├── models/   # 数据模型
 │   │   ├── middleware/   # 中间件
 │   │   └── utils/    # 工具函数
+├── docker/           # Docker 配置文件
+│   ├── docker-compose.yml  # 生产环境配置
+│   ├── docker-compose.dev.yml  # 开发环境配置
+│   ├── backend.Dockerfile
+│   ├── frontend.Dockerfile
+│   └── nginx.conf
 │   └── uploads/      # 图片上传目录
 └── frontend/         # 前端项目
     └── src/
