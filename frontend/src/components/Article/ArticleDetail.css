@@ -150,13 +150,17 @@
   background: var(--color-bg-secondary);
   border-radius: 0;
   white-space: pre-line;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .markdown-body blockquote p,
 .markdown-body .markdown-blockquote p {
   margin: 0;
   display: block;
-  line-height: 0;
+  line-height: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .markdown-body blockquote > *,
