@@ -106,6 +106,97 @@ export async function callLLM(
 }
 
 /**
+ * 流式调用大模型生成内容
+ * 返回一个异步生成器，每次yield一个chunk
+ */
+export async function* callLLMStream(
+  prompt: string,
+  options?: { temperature?: number; maxTokens?: number }
+): AsyncGenerator<string, void, unknown> {
+  const { provider, model } = getProvider('llm_provider');
+  if (!provider.apiKey) throw new Error('API key not configured');
+
+  const base = normalizeApiBase(provider.apiBase || '', 'https://api.openai.com');
+  const response = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${provider.apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: options?.temperature || 0.7,
+      max_tokens: options?.maxTokens || 2000,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API call failed: ${response.statusText} - ${errorText}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Response body is null');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // 保留最后一个不完整的行
+
+      for (const line of lines) {
+        if (line.trim() === '') continue;
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              yield content;
+            }
+          } catch (e) {
+            // 忽略解析错误，继续处理下一行
+          }
+        }
+      }
+    }
+
+    // 处理剩余的buffer
+    if (buffer.trim()) {
+      if (buffer.startsWith('data: ')) {
+        const data = buffer.slice(6);
+        if (data !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              yield content;
+            }
+          } catch (e) {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
  * 调用向量模型生成嵌入
  */
 export async function callEmbedding(text: string): Promise<EmbeddingResponse> {

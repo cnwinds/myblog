@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw } from 'react-icons/fi';
-import { analyzeArticleForImages, generateImage, findImagePositions, ImagePlan } from '../../services/ai';
+import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye } from 'react-icons/fi';
+import ReactMarkdown from 'react-markdown';
+import { analyzeArticleForImages, analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan } from '../../services/ai';
 import { uploadService } from '../../services/upload';
 import './ImageGenerator.css';
 
@@ -33,6 +34,8 @@ export default function ImageGenerator({
   const [generationTasks, setGenerationTasks] = useState<ImageGenerationTask[]>([]);
   const [generating, setGenerating] = useState(false);
   const [inserting, setInserting] = useState(false);
+  // 跟踪每个提示词的编辑状态：key 是 index，value 是是否在编辑模式
+  const [promptEditStates, setPromptEditStates] = useState<Record<number, boolean>>({});
 
   // 初始化：如果有初始图片规划，自动加载
   useEffect(() => {
@@ -48,7 +51,7 @@ export default function ImageGenerator({
     }
   }, [initialImagePlans]);
 
-  // 分析文章
+  // 分析文章（流式版本）
   const handleAnalyze = async () => {
     if (!title.trim() || !content.trim()) {
       alert('请先填写文章标题和内容');
@@ -56,24 +59,59 @@ export default function ImageGenerator({
     }
 
     setAnalyzing(true);
+    // 清空之前的规划
+    setImagePlans([]);
+    setGenerationTasks([]);
+
     try {
-      const response = await analyzeArticleForImages(title, content);
-      setImagePlans(response.imagePlans);
-      // 初始化生成任务
-      setGenerationTasks(
-        response.imagePlans.map((plan) => ({
-          plan,
-          status: 'pending' as const,
-        }))
+      await analyzeArticleForImagesStream(
+        title,
+        content,
+        // 每解析出一个完整的项时的回调
+        (newItems: ImagePlan[]) => {
+          setImagePlans((prev) => {
+            // 合并新项，避免重复（基于index）
+            const existingIndexes = new Set(prev.map(p => p.index));
+            const uniqueNewItems = newItems.filter(item => !existingIndexes.has(item.index));
+            const merged = [...prev, ...uniqueNewItems].sort((a, b) => a.index - b.index);
+            
+            // 更新生成任务
+            setGenerationTasks(
+              merged.map((plan) => ({
+                plan,
+                status: 'pending' as const,
+              }))
+            );
+            
+            return merged;
+          });
+        },
+        // 所有项解析完成时的回调
+        (finalItems: ImagePlan[]) => {
+          setImagePlans(finalItems);
+          // 初始化生成任务
+          setGenerationTasks(
+            finalItems.map((plan) => ({
+              plan,
+              status: 'pending' as const,
+            }))
+          );
+          // 保存图片规划到文章
+          if (onSaveImagePlans) {
+            onSaveImagePlans(finalItems);
+          }
+          setAnalyzing(false);
+        },
+        // 错误回调
+        (error: string) => {
+          console.error('分析文章失败:', error);
+          alert(error || '分析文章失败，请重试');
+          setAnalyzing(false);
+        }
       );
-      // 保存图片规划到文章
-      if (onSaveImagePlans) {
-        onSaveImagePlans(response.imagePlans);
-      }
     } catch (error: any) {
       console.error('分析文章失败:', error);
-      alert(error.response?.data?.error || '分析文章失败，请重试');
-    } finally {
+      alert(error.message || '分析文章失败，请重试');
       setAnalyzing(false);
     }
   };
@@ -469,36 +507,66 @@ export default function ImageGenerator({
                         )}
                         {task.plan.prompt && (
                           <div className="image-plan-prompt">
-                            <strong>生成提示词：</strong>
-                            <textarea
-                              className="prompt-content prompt-editable"
-                              value={task.plan.prompt}
-                              onChange={(e) => {
-                                const newPrompt = e.target.value;
-                                // 更新对应的plan
-                                setGenerationTasks((prev) => {
-                                  const newTasks = [...prev];
-                                  newTasks[index] = {
-                                    ...newTasks[index],
-                                    plan: {
-                                      ...newTasks[index].plan,
-                                      prompt: newPrompt,
-                                    },
-                                  };
-                                  // 保存更新后的图片规划
-                                  if (onSaveImagePlans) {
-                                    const updatedPlans = newTasks.map((t) => ({
-                                      ...t.plan,
-                                      imageUrl: t.imageUrl,
-                                    }));
-                                    onSaveImagePlans(updatedPlans);
-                                  }
-                                  return newTasks;
-                                });
-                              }}
-                              rows={6}
-                              placeholder="请输入图片生成提示词..."
-                            />
+                            <div className="prompt-header">
+                              <strong>生成提示词：</strong>
+                              <button
+                                className="btn btn-sm btn-link"
+                                onClick={() => {
+                                  setPromptEditStates((prev) => ({
+                                    ...prev,
+                                    [task.plan.index]: !prev[task.plan.index],
+                                  }));
+                                }}
+                                type="button"
+                              >
+                                {promptEditStates[task.plan.index] ? (
+                                  <>
+                                    <FiEye />
+                                    <span>预览</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <FiEdit2 />
+                                    <span>编辑</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                            {promptEditStates[task.plan.index] ? (
+                              <textarea
+                                className="prompt-content prompt-editable"
+                                value={task.plan.prompt}
+                                onChange={(e) => {
+                                  const newPrompt = e.target.value;
+                                  // 更新对应的plan
+                                  setGenerationTasks((prev) => {
+                                    const newTasks = [...prev];
+                                    newTasks[index] = {
+                                      ...newTasks[index],
+                                      plan: {
+                                        ...newTasks[index].plan,
+                                        prompt: newPrompt,
+                                      },
+                                    };
+                                    // 保存更新后的图片规划
+                                    if (onSaveImagePlans) {
+                                      const updatedPlans = newTasks.map((t) => ({
+                                        ...t.plan,
+                                        imageUrl: t.imageUrl,
+                                      }));
+                                      onSaveImagePlans(updatedPlans);
+                                    }
+                                    return newTasks;
+                                  });
+                                }}
+                                rows={6}
+                                placeholder="请输入图片生成提示词..."
+                              />
+                            ) : (
+                              <div className="prompt-content prompt-markdown">
+                                <ReactMarkdown>{task.plan.prompt}</ReactMarkdown>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

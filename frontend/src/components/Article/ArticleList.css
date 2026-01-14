@@ -33,6 +33,12 @@
   font-size: var(--font-size-base);
   margin: 0 0 var(--spacing-sm) 0;
   font-weight: 400;
+  /* 限制最多显示3行 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .article-date {
