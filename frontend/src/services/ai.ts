@@ -195,3 +195,18 @@ export async function findImagePositions(
   });
   return response.data;
 }
+
+/**
+ * 获取图片生成提示词模板
+ */
+export async function getImagePromptTemplate(): Promise<string> {
+  const response = await api.get<{ template: string }>('/settings/image-prompt-template');
+  return response.data.template || '';
+}
+
+/**
+ * 保存图片生成提示词模板
+ */
+export async function saveImagePromptTemplate(template: string): Promise<void> {
+  await api.post('/settings/image-prompt-template', { template });
+}

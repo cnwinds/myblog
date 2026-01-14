@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { articleService, Article } from '../../services/article';
 import { useAuth } from '../../hooks/useAuth';
 import { formatChinaDateTime } from '../../utils/dateUtils';
@@ -99,6 +100,7 @@ export default function ArticleDetail() {
         </div>
         <div className="markdown-body">
           <ReactMarkdown
+            remarkPlugins={[remarkBreaks]}
             components={{
               img: ({ node, ...props }) => (
                 <img
@@ -108,6 +110,14 @@ export default function ArticleDetail() {
                   alt={props.alt || '图片'}
                 />
               ),
+              blockquote: ({ node, children, ...props }) => {
+                // 自定义 blockquote 渲染，确保每个引用行独立显示
+                return (
+                  <blockquote className="markdown-blockquote" {...props}>
+                    {children}
+                  </blockquote>
+                );
+              },
             }}
           >
             {article.content}

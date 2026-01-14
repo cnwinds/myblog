@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye } from 'react-icons/fi';
+import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSettings, FiSave } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
-import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan } from '../../services/ai';
+import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan, getImagePromptTemplate, saveImagePromptTemplate } from '../../services/ai';
 import { uploadService } from '../../services/upload';
 import './ImageGenerator.css';
 
@@ -36,6 +36,11 @@ export default function ImageGenerator({
   const [inserting, setInserting] = useState(false);
   // 跟踪每个提示词的编辑状态：key 是 index，value 是是否在编辑模式
   const [promptEditStates, setPromptEditStates] = useState<Record<number, boolean>>({});
+  // 右侧提示词编辑器状态
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [promptTemplate, setPromptTemplate] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
 
   // 初始化：如果有初始图片规划，自动加载
   useEffect(() => {
@@ -50,6 +55,39 @@ export default function ImageGenerator({
       );
     }
   }, [initialImagePlans]);
+
+  // 加载提示词模板
+  useEffect(() => {
+    if (showPromptEditor) {
+      loadPromptTemplate();
+    }
+  }, [showPromptEditor]);
+
+  const loadPromptTemplate = async () => {
+    setLoadingTemplate(true);
+    try {
+      const template = await getImagePromptTemplate();
+      setPromptTemplate(template);
+    } catch (error) {
+      console.error('加载提示词模板失败:', error);
+      alert('加载提示词模板失败');
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      await saveImagePromptTemplate(promptTemplate);
+      alert('提示词模板保存成功！');
+    } catch (error: any) {
+      console.error('保存提示词模板失败:', error);
+      alert(error.response?.data?.error || '保存提示词模板失败');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   // 分析文章（流式版本）
   const handleAnalyze = async () => {
@@ -356,19 +394,39 @@ export default function ImageGenerator({
 
   return (
     <div className="image-generator-overlay">
-      <div className="image-generator-modal">
-        <div className="image-generator-header">
-          <h2>AI图片生成助手</h2>
-          <button className="close-btn" onClick={onClose}>
-            <FiX />
-          </button>
-        </div>
+      <div className={`image-generator-modal ${showPromptEditor ? 'with-editor' : ''}`}>
+        <div className="image-generator-content-wrapper">
+          <div className="image-generator-header">
+            <h2>AI图片生成助手</h2>
+            <div className="header-actions">
+              <button 
+                type="button"
+                className="settings-btn" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowPromptEditor(!showPromptEditor);
+                }}
+                title="提示词模板设置"
+              >
+                <FiSettings />
+              </button>
+              <button 
+                type="button"
+                className="close-btn" 
+                onClick={onClose}
+              >
+                <FiX />
+              </button>
+            </div>
+          </div>
 
-        <div className="image-generator-content">
+          <div className="image-generator-content">
           {imagePlans.length === 0 ? (
             <div className="image-generator-empty">
               <p>点击下方按钮，AI将分析您的文章并生成图片规划</p>
               <button
+                type="button"
                 className="btn btn-primary"
                 onClick={handleAnalyze}
                 disabled={analyzing}
@@ -390,6 +448,7 @@ export default function ImageGenerator({
             <>
               <div className="image-generator-actions">
                 <button
+                  type="button"
                   className="btn btn-primary"
                   onClick={handleRegenerate}
                   disabled={analyzing}
@@ -407,6 +466,7 @@ export default function ImageGenerator({
                   )}
                 </button>
                 <button
+                  type="button"
                   className="btn btn-primary"
                   onClick={handleGenerateAll}
                   disabled={generating || generationTasks.every((t) => t.status !== 'pending')}
@@ -424,6 +484,7 @@ export default function ImageGenerator({
                   )}
                 </button>
                 <button
+                  type="button"
                   className="btn btn-success"
                   onClick={handleInsertAll}
                   disabled={!generationTasks.some((t) => t.status === 'completed') || inserting}
@@ -456,6 +517,7 @@ export default function ImageGenerator({
                       <div className="image-plan-status">
                         {task.status === 'pending' && (
                           <button
+                            type="button"
                             className="btn btn-sm btn-primary"
                             onClick={() => handleGenerateImage(index)}
                           >
@@ -474,6 +536,7 @@ export default function ImageGenerator({
                             <FiCheck />
                             <span>已完成</span>
                             <button
+                              type="button"
                               className="btn btn-sm btn-primary"
                               onClick={() => handleGenerateImage(index)}
                               style={{ marginLeft: '8px' }}
@@ -487,6 +550,7 @@ export default function ImageGenerator({
                           <span className="status-error">
                             <span>❌ 失败</span>
                             <button
+                              type="button"
                               className="btn btn-sm btn-primary"
                               onClick={() => handleGenerateImage(index)}
                             >
@@ -577,6 +641,13 @@ export default function ImageGenerator({
                         </div>
                       )}
 
+                      {task.status === 'generating' && (
+                        <div className="image-plan-loading">
+                          <FiLoader className="spinning" />
+                          <span>正在生成图片...</span>
+                        </div>
+                      )}
+
                       {task.status === 'error' && task.error && (
                         <div className="image-plan-error">
                           <p>错误：{task.error}</p>
@@ -588,7 +659,78 @@ export default function ImageGenerator({
               </div>
             </>
           )}
+          </div>
         </div>
+        
+        {/* 右侧提示词编辑器 */}
+        {showPromptEditor && (
+          <div className="prompt-template-editor">
+            <div className="editor-header">
+              <h3>提示词模板设置</h3>
+              <button 
+                type="button"
+                className="close-editor-btn" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowPromptEditor(false);
+                }}
+              >
+                <FiX />
+              </button>
+            </div>
+            <div className="editor-content">
+              {loadingTemplate ? (
+                <div className="loading-template">
+                  <FiLoader className="spinning" />
+                  <span>加载中...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="editor-info">
+                    <p>提示词模板用于生成图片规划。使用 <code>{'{{TITLE}}'}</code> 和 <code>{'{{CONTENT}}'}</code> 作为占位符，它们会被实际的文章标题和内容替换。</p>
+                  </div>
+                  <textarea
+                    className="template-textarea"
+                    value={promptTemplate}
+                    onChange={(e) => setPromptTemplate(e.target.value)}
+                    placeholder="请输入提示词模板..."
+                    rows={30}
+                  />
+                  <div className="editor-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleSaveTemplate}
+                      disabled={savingTemplate}
+                    >
+                      {savingTemplate ? (
+                        <>
+                          <FiLoader className="spinning" />
+                          <span>保存中...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSave />
+                          <span>保存模板</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={loadPromptTemplate}
+                      disabled={loadingTemplate}
+                    >
+                      <FiRefreshCw />
+                      <span>重置</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

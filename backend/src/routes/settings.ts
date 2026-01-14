@@ -7,7 +7,7 @@ import {
   updateProvider,
   deleteProvider,
 } from '../controllers/providerController';
-import { getSettings, saveSettings } from '../controllers/settingsController';
+import { getSettings, saveSettings, getImagePromptTemplate, saveImagePromptTemplate } from '../controllers/settingsController';
 
 const router = Router();
 
@@ -22,5 +22,9 @@ router.delete('/providers/:id', authenticateToken, deleteProvider);
 // 设置管理
 router.get('/selection', authenticateToken, getSettings);
 router.post('/selection', authenticateToken, saveSettings);
+
+// 图片生成提示词模板管理
+router.get('/image-prompt-template', authenticateToken, getImagePromptTemplate);
+router.post('/image-prompt-template', authenticateToken, saveImagePromptTemplate);
 
 export default router;

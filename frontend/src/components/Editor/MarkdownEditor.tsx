@@ -364,7 +364,7 @@ export default function MarkdownEditor({
         <MDEditor
           value={value}
           onChange={(val) => onChange(val || '')}
-          preview="edit"
+          preview="live"
           hideToolbar={false}
           visibleDragbar={false}
         />

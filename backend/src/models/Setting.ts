@@ -1,4 +1,5 @@
 import db from '../utils/db';
+import { getChinaDateTimeString } from '../utils/dateUtils';
 
 export interface Setting {
   id: number;
@@ -15,11 +16,12 @@ export class SettingModel {
 
   static set(key: string, value: string): void {
     const existing = db.prepare('SELECT id FROM settings WHERE key = ?').get(key);
+    const chinaTime = getChinaDateTimeString();
     
     if (existing) {
-      db.prepare('UPDATE settings SET value = ?, updatedAt = CURRENT_TIMESTAMP WHERE key = ?').run(value, key);
+      db.prepare('UPDATE settings SET value = ?, updatedAt = ? WHERE key = ?').run(value, chinaTime, key);
     } else {
-      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, value);
+      db.prepare('INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, ?)').run(key, value, chinaTime);
     }
   }
 
