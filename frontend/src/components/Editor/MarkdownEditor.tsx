@@ -6,15 +6,16 @@ import ImageGenerator from './ImageGenerator';
 import { uploadService } from '../../services/upload';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
+import { ImagePlan } from '../../services/ai';
 import './MarkdownEditor.css';
 
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  title?: string; // 文章标题，用于图片生成
-  imagePlans?: any[]; // 初始图片规划数据
-  onSaveImagePlans?: (imagePlans: any[]) => void; // 保存图片规划的回调
+  title?: string;
+  imagePlans?: ImagePlan[];
+  onSaveImagePlans?: (imagePlans: ImagePlan[]) => void;
 }
 
 export default function MarkdownEditor({

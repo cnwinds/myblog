@@ -69,7 +69,7 @@
 }
 
 .markdown-body {
-  line-height: 1.8;
+  line-height: 1.2;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
 }
@@ -100,7 +100,7 @@
 }
 
 .markdown-body img {
-  max-width: 1200px;
+  max-width: 100%;
   width: 100%;
   height: auto;
   border-radius: var(--radius-md);
@@ -108,7 +108,7 @@
   display: block;
   box-shadow: var(--shadow-md);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .markdown-body img:hover {
@@ -118,7 +118,7 @@
 
 .markdown-body code {
   background: var(--color-bg-tertiary);
-  padding: 0.2rem 0.4rem;
+  padding: 0.2rem var(--spacing-xs);
   border-radius: var(--radius-sm);
   font-size: 0.9em;
   color: var(--color-text-primary);
@@ -143,33 +143,24 @@
 /* blockquote 样式 - 与编辑器预览一致 */
 .markdown-body blockquote,
 .markdown-body .markdown-blockquote {
-  border-left: 4px solid #ddd;
-  padding: 0 16px;
-  margin: 16px 0;
+  border-left: var(--radius-sm) solid var(--color-border-dark);
+  padding: 0 var(--spacing-md);
+  margin: var(--spacing-md) 0;
   color: var(--color-text-secondary);
-  background: #f5f5f5;
+  background: var(--color-bg-secondary);
   border-radius: 0;
   white-space: pre-line;
-}
-
-[data-theme='dark'] .markdown-body blockquote,
-[data-theme='dark'] .markdown-body .markdown-blockquote {
-  border-left-color: #555;
-  background: #2a2a2a;
 }
 
 .markdown-body blockquote p,
 .markdown-body .markdown-blockquote p {
   margin: 0;
   display: block;
-  line-height: 0.5;
+  line-height: 0;
 }
 
 .markdown-body blockquote > *,
-.markdown-body .markdown-blockquote > * {
-  display: block;
-}
-
+.markdown-body .markdown-blockquote > *,
 .markdown-body blockquote br,
 .markdown-body .markdown-blockquote br {
   display: block;

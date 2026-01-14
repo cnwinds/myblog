@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { articleService } from '../services/article';
+import { ImagePlan } from '../services/ai';
 import MarkdownEditor from '../components/Editor/MarkdownEditor';
 import './EditorPage.css';
 
@@ -10,16 +11,17 @@ export default function EditorPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [imagePlans, setImagePlans] = useState<any[] | null>(null);
+  const [imagePlans, setImagePlans] = useState<ImagePlan[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // 如果是编辑模式，加载文章
     if (isEdit && id) {
-      loadArticle(parseInt(id));
+      const articleId = parseInt(id, 10);
+      if (!isNaN(articleId)) {
+        loadArticle(articleId);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, id]);
 
   const loadArticle = async (articleId: number) => {
@@ -28,38 +30,38 @@ export default function EditorPage() {
       const article = await articleService.getArticle(articleId);
       setTitle(article.title);
       setContent(article.content);
-      // 解析并加载图片规划
+      
       if (article.imagePlans) {
         try {
-          const plans = JSON.parse(article.imagePlans);
+          const plans = JSON.parse(article.imagePlans) as ImagePlan[];
           setImagePlans(Array.isArray(plans) ? plans : null);
-        } catch (e) {
-          console.warn('Failed to parse imagePlans:', e);
+        } catch (err) {
+          console.warn('Failed to parse imagePlans:', err);
           setImagePlans(null);
         }
       } else {
         setImagePlans(null);
       }
-    } catch (error) {
-      console.error('Failed to load article:', error);
-      alert('加载文章失败');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '加载文章失败';
+      alert(errorMessage);
+      console.error('Failed to load article:', err);
       navigate('/');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveImagePlans = async (plans: any[]) => {
-    if (!isEdit || !id) return; // 只有编辑模式才保存
+  const handleSaveImagePlans = async (plans: ImagePlan[]) => {
+    if (!isEdit || !id) return;
     
     try {
-      await articleService.updateArticle(parseInt(id), { 
+      await articleService.updateArticle(parseInt(id, 10), { 
         imagePlans: plans 
       });
       setImagePlans(plans);
     } catch (error) {
       console.error('Failed to save image plans:', error);
-      // 不显示错误提示，避免打断用户操作
     }
   };
 
@@ -72,23 +74,28 @@ export default function EditorPage() {
 
     setSaving(true);
     try {
+      const articleData = {
+        title,
+        content,
+        imagePlans: imagePlans || undefined,
+      };
+
       if (isEdit && id) {
-        await articleService.updateArticle(parseInt(id), { 
-          title, 
-          content,
-          imagePlans: imagePlans || undefined,
-        });
+        const articleId = parseInt(id, 10);
+        if (isNaN(articleId)) {
+          throw new Error('无效的文章ID');
+        }
+        await articleService.updateArticle(articleId, articleData);
       } else {
-        await articleService.createArticle({ 
-          title, 
-          content,
-          imagePlans: imagePlans || undefined,
-        });
+        await articleService.createArticle(articleData);
       }
       navigate('/');
-    } catch (error: any) {
-      console.error('Failed to save article:', error);
-      alert(error.response?.data?.error || '保存失败');
+    } catch (err) {
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '保存失败';
+      alert(errorMessage);
+      console.error('Failed to save article:', err);
     } finally {
       setSaving(false);
     }

@@ -1,4 +1,5 @@
 import api from './api';
+import { ImagePlan } from './ai';
 
 export interface Article {
   id: number;
@@ -13,13 +14,13 @@ export interface Article {
 export interface CreateArticleData {
   title: string;
   content: string;
-  imagePlans?: any; // 图片规划数据（对象数组）
+  imagePlans?: ImagePlan[];
 }
 
 export interface UpdateArticleData {
   title?: string;
   content?: string;
-  imagePlans?: any; // 图片规划数据（对象数组）
+  imagePlans?: ImagePlan[];
 }
 
 export const articleService = {
