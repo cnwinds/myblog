@@ -36,6 +36,9 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    volumes:
+      # 挂载uploads目录到nginx容器，让nginx直接提供静态文件
+      - ./backend-uploads:/usr/share/nginx/uploads:ro
     networks:
       - myblog-network
     healthcheck:
