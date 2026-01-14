@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { articleService, Article } from '../../services/article';
 import { useAuth } from '../../hooks/useAuth';
+import { formatChinaDateTime } from '../../utils/dateUtils';
 import './ArticleDetail.css';
 
 export default function ArticleDetail() {
@@ -87,10 +88,10 @@ export default function ArticleDetail() {
       <article className="article-content">
         <h1>{article.title}</h1>
         <div className="article-meta">
-          <span>{new Date(article.createdAt).toLocaleString('zh-CN')}</span>
+          <span>{formatChinaDateTime(article.createdAt)}</span>
           {article.updatedAt !== article.createdAt && (
             <span className="updated">
-              更新于 {new Date(article.updatedAt).toLocaleString('zh-CN')}
+              更新于 {formatChinaDateTime(article.updatedAt)}
             </span>
           )}
         </div>

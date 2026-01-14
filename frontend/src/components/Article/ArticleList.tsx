@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { articleService, Article } from '../../services/article';
+import { formatChinaDate } from '../../utils/dateUtils';
 import './ArticleList.css';
 
 export default function ArticleList() {
@@ -31,14 +32,9 @@ export default function ArticleList() {
   }
 
   // 格式化日期为 "Month Day, Year" 格式（如 "January 11, 2026"）
+  // 使用 formatChinaDate 确保使用中国时区
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    return date.toLocaleDateString('en-US', options);
+    return formatChinaDate(dateString, 'en-US');
   };
 
   // 提取摘要（跳过图片后的第一行内容）

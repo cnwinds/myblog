@@ -1,4 +1,5 @@
 import db from '../utils/db';
+import { getChinaDateTimeString } from '../utils/dateUtils';
 
 export interface Article {
   id: number;
@@ -33,9 +34,11 @@ export class ArticleModel {
   }
 
   static create(data: CreateArticleData): Article {
+    // 使用中国时区的时间
+    const chinaTime = getChinaDateTimeString();
     const result = db
-      .prepare('INSERT INTO articles (title, content, authorId, imagePlans) VALUES (?, ?, ?, ?)')
-      .run(data.title, data.content, data.authorId, data.imagePlans || null);
+      .prepare('INSERT INTO articles (title, content, authorId, imagePlans, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(data.title, data.content, data.authorId, data.imagePlans || null, chinaTime, chinaTime);
     
     return this.findById(result.lastInsertRowid as number)!;
   }
@@ -66,7 +69,10 @@ export class ArticleModel {
       return article;
     }
 
-    updates.push('updatedAt = CURRENT_TIMESTAMP');
+    // 使用中国时区的时间
+    const chinaTime = getChinaDateTimeString();
+    updates.push('updatedAt = ?');
+    values.push(chinaTime);
     values.push(id);
 
     db.prepare(`UPDATE articles SET ${updates.join(', ')} WHERE id = ?`).run(...values);
