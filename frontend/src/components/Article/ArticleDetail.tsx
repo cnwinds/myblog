@@ -114,6 +114,9 @@ export default function ArticleDetail() {
           </ReactMarkdown>
         </div>
       </article>
+      <div className="article-footer">
+        <Link to="/" className="back-link">← 返回列表</Link>
+      </div>
       {previewImage && (
         <ImagePreview imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
       )}

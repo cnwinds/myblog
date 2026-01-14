@@ -6,9 +6,9 @@ import sharp from 'sharp';
 import { getYearAndWeek } from '../utils/dateUtils';
 
 // 图片处理配置
-const MAX_WIDTH = 800; // 最大宽度（适合博客文章显示，优化文件大小）
-const MAX_HEIGHT = 800; // 最大高度（适合博客文章显示，优化文件大小）
-const JPEG_QUALITY = 70; // JPG 质量 (1-100)，进一步优化文件大小
+const MAX_WIDTH = 1920; // 最大宽度（高清显示）
+const MAX_HEIGHT = 1920; // 最大高度（高清显示）
+const JPEG_QUALITY = 70; // JPG 质量 (1-100)，提高质量以保持清晰度
 
 export async function uploadImage(req: AuthRequest, res: Response) {
   try {

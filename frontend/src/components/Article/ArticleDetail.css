@@ -100,7 +100,7 @@
 }
 
 .markdown-body img {
-  max-width: 600px;
+  max-width: 1200px;
   width: 100%;
   height: auto;
   border-radius: var(--radius-md);
@@ -170,4 +170,12 @@
 
 .error {
   color: var(--color-error);
+}
+
+.article-footer {
+  margin-top: var(--spacing-2xl);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: center;
 }
