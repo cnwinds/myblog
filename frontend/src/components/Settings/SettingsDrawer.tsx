@@ -74,36 +74,39 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
 
         <div className="drawer-content">
           {isAuthenticated ? (
-            <SettingsTabs
-              tabs={[
-                {
-                  id: 'llm',
-                  label: 'LLM配置',
-                  content: (
-                    <>
-                      <ProviderManagement />
-                      <ProviderSelection />
-                    </>
-                  ),
-                },
-                {
-                  id: 'image',
-                  label: '文生图配置',
-                  content: (
-                    <>
-                      <ImageProviderManagement />
-                      <ImageProviderSelection />
-                    </>
-                  ),
-                },
-                {
-                  id: 'password',
-                  label: '修改密码',
-                  content: <ChangePassword />,
-                },
-              ]}
-              defaultTab="llm"
-            />
+            // 只有当抽屉打开时才渲染内容，避免不必要的 API 调用
+            isOpen ? (
+              <SettingsTabs
+                tabs={[
+                  {
+                    id: 'llm',
+                    label: 'LLM配置',
+                    content: (
+                      <>
+                        <ProviderManagement />
+                        <ProviderSelection />
+                      </>
+                    ),
+                  },
+                  {
+                    id: 'image',
+                    label: '文生图配置',
+                    content: (
+                      <>
+                        <ImageProviderManagement />
+                        <ImageProviderSelection />
+                      </>
+                    ),
+                  },
+                  {
+                    id: 'password',
+                    label: '修改密码',
+                    content: <ChangePassword />,
+                  },
+                ]}
+                defaultTab="llm"
+              />
+            ) : null
           ) : (
             <div className="settings-login-prompt">
               <p>请先登录以访问系统设置</p>
