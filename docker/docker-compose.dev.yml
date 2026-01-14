@@ -13,6 +13,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
+      - TZ=Asia/Shanghai
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key}
       - DB_PATH=/app/data/blog.db
       - UPLOAD_DIR=/app/uploads

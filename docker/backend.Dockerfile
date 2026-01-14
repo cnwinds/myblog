@@ -45,13 +45,19 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 # 安装构建工具和运行时依赖
 # better-sqlite3 需要编译原生模块
 # sharp 需要 vips 库（运行时也需要）
+# tzdata 用于设置时区
 RUN apk add \
     python3 \
     make \
     g++ \
     vips \
     vips-dev \
-    wget
+    wget \
+    tzdata
+
+# 设置时区为中国时间
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 复制 package 文件
 COPY backend/package*.json ./

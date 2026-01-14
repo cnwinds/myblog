@@ -28,6 +28,13 @@ FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:alpine
 # 设置 apk 使用阿里云镜像源加速
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
+# 安装时区数据
+RUN apk add --no-cache tzdata
+
+# 设置时区为中国时间
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # 复制构建产物到 nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
 
