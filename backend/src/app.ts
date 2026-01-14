@@ -49,8 +49,9 @@ if (!fs.existsSync(uploadDir)) {
 
 // 中间件
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 增加 JSON 和 URL 编码的请求体大小限制（默认只有100kb）
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // 静态文件服务（用于提供上传的图片）
 app.use('/uploads', express.static(path.resolve(uploadDir)));
