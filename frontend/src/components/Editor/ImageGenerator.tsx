@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
-import { analyzeArticleForImages, analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan } from '../../services/ai';
+import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan } from '../../services/ai';
 import { uploadService } from '../../services/upload';
 import './ImageGenerator.css';
 
