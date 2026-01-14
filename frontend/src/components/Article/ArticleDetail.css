@@ -107,6 +107,13 @@
   margin: var(--spacing-md) auto;
   display: block;
   box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.markdown-body img:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-lg);
 }
 
 .markdown-body code {

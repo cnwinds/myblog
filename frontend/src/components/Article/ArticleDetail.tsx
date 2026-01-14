@@ -4,12 +4,14 @@ import ReactMarkdown from 'react-markdown';
 import { articleService, Article } from '../../services/article';
 import { useAuth } from '../../hooks/useAuth';
 import { formatChinaDateTime } from '../../utils/dateUtils';
+import ImagePreview from './ImagePreview';
 import './ArticleDetail.css';
 
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -96,9 +98,25 @@ export default function ArticleDetail() {
           )}
         </div>
         <div className="markdown-body">
-          <ReactMarkdown>{article.content}</ReactMarkdown>
+          <ReactMarkdown
+            components={{
+              img: ({ node, ...props }) => (
+                <img
+                  {...props}
+                  onClick={() => setPreviewImage(props.src || '')}
+                  style={{ cursor: 'pointer' }}
+                  alt={props.alt || '图片'}
+                />
+              ),
+            }}
+          >
+            {article.content}
+          </ReactMarkdown>
         </div>
       </article>
+      {previewImage && (
+        <ImagePreview imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
+      )}
     </div>
   );
 }
