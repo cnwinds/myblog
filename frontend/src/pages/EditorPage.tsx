@@ -19,7 +19,7 @@ export default function EditorPage() {
   const [restoredDraft, setRestoredDraft] = useState(false);
 
   // 使用 ref 来跟踪自动保存
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -81,8 +81,8 @@ export default function EditorPage() {
       
       if (article.imagePlans) {
         try {
-          const plans = JSON.parse(article.imagePlans) as ImagePlan[];
-          setImagePlans(Array.isArray(plans) ? plans : null);
+          const parsed = JSON.parse(article.imagePlans);
+          setImagePlans(Array.isArray(parsed) ? parsed : null);
         } catch (err) {
           console.warn('Failed to parse imagePlans:', err);
           setImagePlans(null);
@@ -171,9 +171,13 @@ export default function EditorPage() {
       }
       navigate('/');
     } catch (err) {
-      const errorMessage = err instanceof Error
-        ? err.message
-        : (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '保存失败';
+      let errorMessage = '保存失败';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else {
+        const errorObj = err as { response?: { data?: { error?: string } } };
+        errorMessage = errorObj?.response?.data?.error || '保存失败';
+      }
       alert(errorMessage);
       console.error('Failed to save article:', err);
     } finally {
