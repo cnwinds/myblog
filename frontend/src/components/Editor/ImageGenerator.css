@@ -215,12 +215,12 @@
 .image-plan-text p {
   margin: 6px 0;
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
 .image-plan-text strong {
-  color: #333;
+  color: var(--color-text-secondary);
   font-weight: 600;
 }
 
@@ -393,6 +393,37 @@
 .image-plan-loading .spinning {
   font-size: 20px;
   color: var(--color-primary);
+}
+
+.prompt-generating-indicator {
+  margin-top: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--color-bg-tertiary);
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.prompt-generating-indicator .spinning {
+  font-size: 24px;
+  color: var(--color-primary);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    border-color: var(--color-border);
+  }
+  50% {
+    opacity: 0.7;
+    border-color: var(--color-primary);
+  }
 }
 
 .image-plan-error {

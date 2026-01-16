@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSettings, FiSave } from 'react-icons/fi';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSettings, FiSave, FiTrash2 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan, getImagePromptTemplate, saveImagePromptTemplate } from '../../services/ai';
 import { uploadService } from '../../services/upload';
@@ -9,6 +9,8 @@ interface ImageGeneratorProps {
   title: string;
   content: string;
   initialImagePlans?: ImagePlan[]; // 初始图片规划数据
+  newImagePlan?: ImagePlan | null; // 新添加的图片规划（从外部传入）
+  isGeneratingPrompt?: boolean; // 是否正在生成提示词
   onInsertImages: (images: Array<{ markdown: string; position: string }>) => void;
   onSaveImagePlans?: (imagePlans: ImagePlan[]) => void; // 保存图片规划的回调
   onClose: () => void;
@@ -25,6 +27,8 @@ export default function ImageGenerator({
   title,
   content,
   initialImagePlans,
+  newImagePlan,
+  isGeneratingPrompt = false,
   onInsertImages,
   onSaveImagePlans,
   onClose,
@@ -41,20 +45,94 @@ export default function ImageGenerator({
   const [promptTemplate, setPromptTemplate] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
+  // 使用 ref 跟踪已处理过的 newImagePlan 的标识（使用 prompt 作为唯一标识）
+  const processedImagePlanIdRef = useRef<string | null>(null);
+  // 用于滚动到底部的ref（指向内容容器）
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // 初始化：如果有初始图片规划，自动加载
   useEffect(() => {
     if (initialImagePlans && initialImagePlans.length > 0) {
-      setImagePlans(initialImagePlans);
-      setGenerationTasks(
-        initialImagePlans.map((plan) => ({
-          plan,
-          status: plan.imageUrl ? ('completed' as const) : ('pending' as const),
-          imageUrl: plan.imageUrl,
-        }))
-      );
+      // 使用函数式更新来获取最新的 generationTasks
+      setGenerationTasks((prevTasks) => {
+        // 检查是否需要重新初始化（只在任务数量为0或数量不匹配时）
+        if (prevTasks.length === 0 || prevTasks.length !== initialImagePlans.length) {
+          setImagePlans(initialImagePlans);
+          return initialImagePlans.map((plan) => ({
+            plan,
+            status: plan.imageUrl ? ('completed' as const) : ('pending' as const),
+            imageUrl: plan.imageUrl,
+          }));
+        } else {
+          // 数量匹配，只更新 imagePlans，保留 generationTasks 的状态
+          setImagePlans(initialImagePlans);
+          return prevTasks;
+        }
+      });
     }
   }, [initialImagePlans]);
+
+  // 处理新添加的图片规划：当接收到newImagePlan时，添加到列表最后
+  useEffect(() => {
+    // 检查是否是新的 newImagePlan（通过比较 prompt 内容，避免重复处理）
+    if (newImagePlan && newImagePlan.prompt) {
+      const planId = newImagePlan.prompt.trim();
+      
+      // 如果已经处理过这个提示词，则跳过
+      if (processedImagePlanIdRef.current === planId) {
+        return;
+      }
+      
+      // 标记为已处理
+      processedImagePlanIdRef.current = planId;
+      
+      // 使用函数式更新，确保基于最新的imagePlans状态
+      setImagePlans((prevPlans) => {
+        // 计算新的index（当前最大index + 1，如果没有则从1开始）
+        const maxIndex = prevPlans.length > 0 
+          ? Math.max(...prevPlans.map(p => p.index))
+          : 0;
+        const newPlan: ImagePlan = {
+          ...newImagePlan,
+          index: maxIndex + 1,
+          position: newImagePlan.position || '内容图',
+          type: newImagePlan.type || '内容图',
+        };
+
+        const updatedPlans = [...prevPlans, newPlan];
+        
+        // 添加对应的生成任务
+        setGenerationTasks((prevTasks) => [
+          ...prevTasks,
+          {
+            plan: newPlan,
+            status: 'pending' as const,
+          },
+        ]);
+
+        // 保存更新后的图片规划
+        if (onSaveImagePlans) {
+          onSaveImagePlans(updatedPlans);
+        }
+
+        return updatedPlans;
+      });
+
+      // 滚动到底部，显示新添加的图片规划
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTo({
+            top: contentRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 150);
+    }
+    // 当 newImagePlan 变为 null 时，重置 ref
+    if (!newImagePlan) {
+      processedImagePlanIdRef.current = null;
+    }
+  }, [newImagePlan]); // 移除 onSaveImagePlans 依赖，避免无限循环
 
   // 加载提示词模板
   useEffect(() => {
@@ -62,6 +140,33 @@ export default function ImageGenerator({
       loadPromptTemplate();
     }
   }, [showPromptEditor]);
+
+  // 当正在生成提示词时，滚动到底部
+  useEffect(() => {
+    if (isGeneratingPrompt) {
+      // 延迟滚动，确保DOM已更新
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.scrollTo({
+            top: contentRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    }
+  }, [isGeneratingPrompt]);
+
+  // 计算正在生成的图片数量
+  const generatingCount = useMemo(() => {
+    const count = generationTasks.filter(task => task.status === 'generating').length;
+    console.log('[DEBUG] generatingCount 更新:', count, '总任务数:', generationTasks.length);
+    return count;
+  }, [generationTasks]);
+
+  // 当有图片正在生成时，不自动滚动
+  useEffect(() => {
+    // 移除自动滚动逻辑，让用户保持在当前位置
+  }, [generatingCount]);
 
   const loadPromptTemplate = async () => {
     setLoadingTemplate(true);
@@ -112,15 +217,30 @@ export default function ImageGenerator({
             const existingIndexes = new Set(prev.map(p => p.index));
             const uniqueNewItems = newItems.filter(item => !existingIndexes.has(item.index));
             const merged = [...prev, ...uniqueNewItems].sort((a, b) => a.index - b.index);
-            
-            // 更新生成任务
-            setGenerationTasks(
-              merged.map((plan) => ({
-                plan,
-                status: 'pending' as const,
-              }))
-            );
-            
+
+            // 更新生成任务，保留现有任务的状态
+            setGenerationTasks((prevTasks) => {
+              // 创建现有任务的映射
+              const existingTaskMap = new Map(
+                prevTasks.map(task => [task.plan.index, task])
+              );
+
+              // 为每个图片创建或更新任务，保留已存在任务的状态
+              return merged.map((plan) => {
+                const existingTask = existingTaskMap.get(plan.index);
+                if (existingTask) {
+                  // 保留现有任务的状态和结果
+                  return existingTask;
+                } else {
+                  // 新任务，初始状态为 pending
+                  return {
+                    plan,
+                    status: 'pending' as const,
+                  };
+                }
+              });
+            });
+
             return merged;
           });
         },
@@ -156,11 +276,13 @@ export default function ImageGenerator({
 
   // 重新生成图片规划
   const handleRegenerate = async () => {
+    console.log('[DEBUG] handleRegenerate: 开始重新生成');
     // 清除当前的图片规划和生成任务
     setImagePlans([]);
     setGenerationTasks([]);
     // 重新分析文章
     await handleAnalyze();
+    console.log('[DEBUG] handleRegenerate: 重新生成完成');
   };
 
   // 生成单张图片
@@ -168,14 +290,16 @@ export default function ImageGenerator({
     const task = generationTasks[index];
     if (!task || task.status === 'generating') return;
 
+    console.log(`[DEBUG] handleGenerateImage(${index}): 开始生成，当前状态:`, task.status);
     setGenerationTasks((prev) => {
       const newTasks = [...prev];
-      newTasks[index] = { 
-        ...newTasks[index], 
+      newTasks[index] = {
+        ...prev[index],
         status: 'generating',
         imageUrl: undefined, // 清除旧的图片URL，重新生成
         error: undefined, // 清除旧的错误信息
       };
+      console.log(`[DEBUG] handleGenerateImage(${index}): 状态已设置为 generating`);
       return newTasks;
     });
 
@@ -250,7 +374,7 @@ export default function ImageGenerator({
       setGenerationTasks((prev) => {
         const newTasks = [...prev];
         newTasks[index] = {
-          ...newTasks[index],
+          ...prev[index],
           status: 'completed',
           imageUrl,
         };
@@ -269,7 +393,7 @@ export default function ImageGenerator({
       setGenerationTasks((prev) => {
         const newTasks = [...prev];
         newTasks[index] = {
-          ...newTasks[index],
+          ...prev[index],
           status: 'error',
           error: error.response?.data?.error || '生成图片失败',
         };
@@ -278,13 +402,52 @@ export default function ImageGenerator({
     }
   };
 
+  // 删除单个图片规划
+  const handleDeleteImage = (index: number) => {
+    if (window.confirm('确定要删除这张图片规划吗？')) {
+      setGenerationTasks((prev) => {
+        const newTasks = prev.filter((_, i) => i !== index);
+        // 更新图片规划索引
+        const reorderedTasks = newTasks.map((task, i) => ({
+          ...task,
+          plan: {
+            ...task.plan,
+            index: i + 1,
+          },
+        }));
+        // 保存更新后的图片规划
+        if (onSaveImagePlans) {
+          const updatedPlans = reorderedTasks.map((task) => ({
+            ...task.plan,
+            imageUrl: task.imageUrl,
+          }));
+          onSaveImagePlans(updatedPlans);
+        }
+        return reorderedTasks;
+      });
+    }
+  };
+
   // 生成所有图片
   const handleGenerateAll = async () => {
+    console.log('[DEBUG] handleGenerateAll: 开始批量生成');
+    console.log('[DEBUG] handleGenerateAll: 当前任务列表:', generationTasks.map(t => ({ index: t.plan.index, status: t.status })));
+
+    const pendingTasks = generationTasks.filter(t => t.status === 'pending');
+    console.log('[DEBUG] handleGenerateAll: 待生成任务数:', pendingTasks.length);
+
+    if (pendingTasks.length === 0) {
+      console.log('[DEBUG] handleGenerateAll: 没有待生成的任务，直接返回');
+      return;
+    }
+
     setGenerating(true);
+    console.log('[DEBUG] handleGenerateAll: generating 状态已设置为 true');
     try {
       // 依次生成所有待生成的图片
       for (let i = 0; i < generationTasks.length; i++) {
         if (generationTasks[i].status === 'pending') {
+          console.log(`[DEBUG] handleGenerateAll: 开始生成第 ${i} 张图片`);
           await handleGenerateImage(i);
           // 添加短暂延迟，避免API限流
           await new Promise((resolve) => setTimeout(resolve, 500));
@@ -302,6 +465,7 @@ export default function ImageGenerator({
         });
       }
     } finally {
+      console.log('[DEBUG] handleGenerateAll: 批量生成完成，设置 generating 为 false');
       setGenerating(false);
     }
   };
@@ -421,7 +585,7 @@ export default function ImageGenerator({
             </div>
           </div>
 
-          <div className="image-generator-content">
+          <div className="image-generator-content" ref={contentRef}>
           {imagePlans.length === 0 ? (
             <div className="image-generator-empty">
               <p>点击下方按钮，AI将分析您的文章并生成图片规划</p>
@@ -509,12 +673,20 @@ export default function ImageGenerator({
                     <div className="image-plan-header">
                       <div className="image-plan-info">
                         <h3>
-                          第 {task.plan.index} 张 - {task.plan.type}
+                          第 {task.plan.index} 张 - {task.plan.coreMessage}
                         </h3>
                         <p className="image-plan-position">位置：{task.plan.position}</p>
-                        <p className="image-plan-message">{task.plan.coreMessage}</p>
                       </div>
                       <div className="image-plan-status">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => handleDeleteImage(index)}
+                          title="删除此图片规划"
+                        >
+                          <FiTrash2 />
+                          <span>删除</span>
+                        </button>
                         {task.status === 'pending' && (
                           <button
                             type="button"
@@ -656,6 +828,17 @@ export default function ImageGenerator({
                     </div>
                   </div>
                 ))}
+                {/* 在列表底部显示生成提示词规划的等待动画 */}
+                {(isGeneratingPrompt || analyzing) && (
+                  <div className="prompt-generating-indicator">
+                    <FiLoader className="spinning" />
+                    <span>
+                      {isGeneratingPrompt
+                        ? '正在根据选定文本生成图片提示词...'
+                        : '正在分析文章并生成图片规划...'}
+                    </span>
+                  </div>
+                )}
               </div>
             </>
           )}

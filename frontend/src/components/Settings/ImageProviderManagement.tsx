@@ -119,7 +119,11 @@ export default function ImageProviderManagement() {
                 providers.map((provider) => (
                   <tr key={provider.id}>
                     <td>{provider.name}</td>
-                    <td>文生图BaiLian</td>
+                    <td>
+                      {provider.name && (provider.name.includes('智谱') || provider.name.toLowerCase().includes('zhipu'))
+                        ? '文生图(智谱)'
+                        : '文生图(百炼)'}
+                    </td>
                     <td>
                       {provider.models.length > 0 ? (
                         <div className="models-list">

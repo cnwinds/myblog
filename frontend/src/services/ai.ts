@@ -210,3 +210,78 @@ export async function getImagePromptTemplate(): Promise<string> {
 export async function saveImagePromptTemplate(template: string): Promise<void> {
   await api.post('/settings/image-prompt-template', { template });
 }
+
+/**
+ * 处理文字内容（润色/重写统一接口）
+ * @param text 要处理的文字
+ * @param prompt 完整的处理提示词
+ * @param fullArticleContext 整篇文章内容（作为上下文参考）
+ */
+export async function processText(
+  text: string,
+  prompt: string,
+  fullArticleContext?: string
+): Promise<string> {
+  const response = await api.post<{ processedText: string }>('/ai/process-text', {
+    text,
+    prompt,
+    fullArticleContent: fullArticleContext || '',
+  });
+  return response.data.processedText;
+}
+
+// 内置的提示词模板
+export const PROMPTS = {
+  polish: `你是一位专业的文字编辑专家。请对以下文字进行润色，使其更加流畅、准确、有吸引力。
+
+**润色要求**：
+1. 保持原意不变，不要改变核心内容
+2. 优化表达方式，使语言更加流畅自然
+3. 修正语法错误和标点符号
+4. 提升文字的可读性和吸引力
+5. 保持原文的语言风格（如果是正式文体，保持正式；如果是轻松文体，保持轻松）
+6. 如果原文是Markdown格式，请保持Markdown语法不变`,
+
+  rewrite: `你是一位专业的文字编辑专家。请对以下文字进行重写，使用符合整篇文章风格的表达方式。
+
+**重写要求**：
+1. 遵循原文的意思和核心内容，不要改变事实和信息
+2. 使用符合整篇文章其他部分的文风重写内容
+3. 可以改变句式结构、表达方式，让内容更贴合文章整体风格
+4. 保持信息完整性，不要遗漏关键信息
+5. 如果原文是Markdown格式，请保持Markdown语法不变`,
+};
+
+/**
+ * 润色文字内容（向后兼容的便捷函数）
+ */
+export async function polishText(
+  text: string,
+  fullArticleContent?: string,
+  customPrompt?: string
+): Promise<string> {
+  const prompt = customPrompt || PROMPTS.polish;
+  return processText(text, prompt, fullArticleContent);
+}
+
+/**
+ * 重写文字内容（向后兼容的便捷函数）
+ */
+export async function rewriteText(
+  text: string,
+  fullArticleContent?: string,
+  customPrompt?: string
+): Promise<string> {
+  const prompt = customPrompt || PROMPTS.rewrite;
+  return processText(text, prompt, fullArticleContent);
+}
+
+/**
+ * 根据选定文本生成图片提示词
+ */
+export async function generateImagePromptFromText(text: string): Promise<ImagePlan> {
+  const response = await api.post<{ imagePlan: ImagePlan }>('/ai/generate-image-prompt', {
+    text,
+  });
+  return response.data.imagePlan;
+}

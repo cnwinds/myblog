@@ -91,6 +91,16 @@ export default function ArticleDetail() {
         {children}
       </blockquote>
     ),
+    a: ({ href, children, ...props }) => (
+      <a
+        {...props}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    ),
   };
 
   if (loading) {

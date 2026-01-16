@@ -3,10 +3,11 @@ import { FiImage, FiZap } from 'react-icons/fi';
 import MDEditor from '@uiw/react-md-editor';
 import ImageUpload from './ImageUpload';
 import ImageGenerator from './ImageGenerator';
+import TextProcessDialog from './TextProcessDialog';
 import { uploadService } from '../../services/upload';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ImagePlan } from '../../services/ai';
+import { ImagePlan, generateImagePromptFromText, PROMPTS } from '../../services/ai';
 import './MarkdownEditor.css';
 
 interface MarkdownEditorProps {
@@ -27,7 +28,15 @@ export default function MarkdownEditor({
 }: MarkdownEditorProps) {
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showImageGenerator, setShowImageGenerator] = useState(false);
+  const [showTextProcess, setShowTextProcess] = useState(false);
+  const [textProcessMode, setTextProcessMode] = useState<'polish' | 'rewrite'>('polish');
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [selectedText, setSelectedText] = useState('');
+  const [selectedTextRange, setSelectedTextRange] = useState<{ start: number; end: number } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  const [newImagePlan, setNewImagePlan] = useState<ImagePlan | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { isAuthenticated } = useAuth();
   const { theme } = useTheme();
@@ -336,6 +345,151 @@ export default function MarkdownEditor({
     };
   }, [value, onChange, isAuthenticated]);
 
+  // 处理文本选择，显示上下文菜单
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    let lastMousePosition: { x: number; y: number } | null = null;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // 记录鼠标位置
+      lastMousePosition = { x: e.clientX, y: e.clientY };
+    };
+
+    const handleSelection = () => {
+      // 延迟执行，让 MDEditor 完成内部状态更新
+      timeoutId = setTimeout(() => {
+        const selection = window.getSelection();
+        const selectedText = selection?.toString().trim();
+
+        // 检查是否在编辑器区域内
+        const container = containerRef.current;
+        if (!container || !selection || !selectedText) {
+          return;
+        }
+
+        // 检查选区是否在编辑器内
+        try {
+          const range = selection.getRangeAt(0);
+          if (!container.contains(range.commonAncestorContainer)) {
+            return;
+          }
+        } catch (e) {
+          // 如果获取 range 失败，直接返回
+          return;
+        }
+
+        // 找到 textarea 元素
+        const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+        if (!textarea) return;
+
+        // 只有在 textarea 内选择文本时才显示菜单
+        if (document.activeElement !== textarea) {
+          return;
+        }
+
+        // 获取选中的文本范围
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        if (start === end) {
+          // 没有选中文本，隐藏菜单
+          setShowContextMenu(false);
+          return;
+        }
+
+        setSelectedText(selectedText);
+        setSelectedTextRange({ start, end });
+
+        // 使用鼠标位置来显示菜单
+        if (lastMousePosition) {
+          setContextMenuPosition({
+            x: lastMousePosition.x,
+            y: lastMousePosition.y - 10, // 稍微向上偏移
+          });
+          setShowContextMenu(true);
+        }
+      }, 10);
+    };
+
+    // 监听鼠标移动，记录鼠标位置
+    document.addEventListener('mousemove', handleMouseMove);
+    // 监听鼠标抬起事件（松开鼠标时触发）
+    document.addEventListener('mouseup', handleSelection);
+    // 也监听键盘事件（某些情况下使用 Shift+方向键选择文本）
+    document.addEventListener('keyup', (e) => {
+      if (e.shiftKey) {
+        handleSelection();
+      }
+    });
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleSelection);
+      document.removeEventListener('keyup', handleSelection);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, []);
+
+  // 点击其他地方时隐藏上下文菜单
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (showContextMenu) {
+        const menu = document.querySelector('.text-polish-context-menu');
+        if (menu && !menu.contains(e.target as Node)) {
+          setShowContextMenu(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, [showContextMenu]);
+
+  // 处理文本替换（润色或重写）
+  const handleReplaceProcessedText = (processedText: string) => {
+    if (!selectedTextRange) return;
+
+    const before = value.substring(0, selectedTextRange.start);
+    const after = value.substring(selectedTextRange.end);
+    const newValue = before + processedText + after;
+
+    onChange(newValue);
+    setSelectedTextRange(null);
+    setSelectedText('');
+  };
+
+  // 处理AI生图：根据选定文本生成提示词
+  const handleGenerateImagePrompt = async () => {
+    if (!selectedText || !selectedText.trim()) {
+      alert('请先选择要生成图片提示词的文本');
+      return;
+    }
+
+    setGeneratingPrompt(true);
+    setShowContextMenu(false);
+    // 先打开窗口，显示等待状态
+    setShowImageGenerator(true);
+    // 清空选中状态
+    setSelectedText('');
+    setSelectedTextRange(null);
+
+    try {
+      const imagePlan = await generateImagePromptFromText(selectedText);
+      setNewImagePlan(imagePlan);
+    } catch (error: any) {
+      console.error('生成图片提示词失败:', error);
+      alert(error.response?.data?.error || error.message || '生成图片提示词失败，请重试');
+      // 如果生成失败，关闭窗口
+      setShowImageGenerator(false);
+    } finally {
+      setGeneratingPrompt(false);
+    }
+  };
+
   return (
     <div className="markdown-editor-container" ref={containerRef}>
       <div className="editor-toolbar">
@@ -381,10 +535,79 @@ export default function MarkdownEditor({
           title={title}
           content={value}
           initialImagePlans={imagePlans}
+          newImagePlan={newImagePlan}
+          isGeneratingPrompt={generatingPrompt}
           onInsertImages={handleInsertImages}
           onSaveImagePlans={onSaveImagePlans}
-          onClose={() => setShowImageGenerator(false)}
+          onClose={() => {
+            setShowImageGenerator(false);
+            setNewImagePlan(null);
+            setGeneratingPrompt(false);
+          }}
         />
+      )}
+      {showTextProcess && selectedText && (
+        <TextProcessDialog
+          selectedText={selectedText}
+          fullArticleContent={value}
+          onReplace={handleReplaceProcessedText}
+          mode={textProcessMode}
+          defaultPrompt={textProcessMode === 'polish' ? PROMPTS.polish : PROMPTS.rewrite}
+          onClose={() => {
+            setShowTextProcess(false);
+            setSelectedText('');
+            setSelectedTextRange(null);
+          }}
+        />
+      )}
+      {showContextMenu && contextMenuPosition && (
+        <div
+          className="text-polish-context-menu"
+          style={{
+            position: 'fixed',
+            left: `${contextMenuPosition.x}px`,
+            top: `${contextMenuPosition.y}px`,
+            transform: 'translate(-50%, -100%)',
+          }}
+          onClick={(e) => {
+            console.log('菜单被点击');
+            e.stopPropagation();
+          }}
+        >
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowContextMenu(false);
+              setTextProcessMode('polish');
+              setShowTextProcess(true);
+            }}
+          >
+            ✨ AI 润色
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowContextMenu(false);
+              setTextProcessMode('rewrite');
+              setShowTextProcess(true);
+            }}
+          >
+            🔄 AI 重写
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              console.log('AI生图按钮被点击');
+              e.stopPropagation();
+              handleGenerateImagePrompt();
+            }}
+            disabled={generatingPrompt}
+          >
+            {generatingPrompt ? '⏳ 生成中...' : '🎨 AI生图'}
+          </button>
+        </div>
       )}
     </div>
   );

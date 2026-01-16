@@ -3,10 +3,6 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-bg-primary);
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
 }
 
 .editor-toolbar {
@@ -33,27 +29,12 @@
 }
 
 .editor-content {
-  flex: 1;
   min-height: 600px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
 }
 
 .editor-content .w-md-editor {
-  flex: 1;
   min-height: 600px;
-  height: 100%;
   background: var(--color-bg-primary);
-  display: flex;
-  flex-direction: column;
-}
-
-/* 确保编辑器内容区域可以滚动 */
-.editor-content .w-md-editor-text-input,
-.editor-content .w-md-editor-text {
-  min-height: 600px;
-  flex: 1;
 }
 
 /* MDEditor 主题适配 */
@@ -67,75 +48,56 @@
   color: var(--color-text-primary);
 }
 
-/* 修复标题颜色对比度问题 */
-.editor-content .w-md-editor-text h1,
-.editor-content .w-md-editor-text h2,
-.editor-content .w-md-editor-text h3,
-.editor-content .w-md-editor-text h4,
-.editor-content .w-md-editor-text h5,
-.editor-content .w-md-editor-text h6 {
-  color: var(--color-text-primary) !important;
-  font-weight: 600;
+/* 预览区域样式 */
+.editor-content .w-md-editor-preview {
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
 }
 
-/* 确保在深色主题下标题有足够的对比度 */
-[data-theme='dark'] .editor-content .w-md-editor-text h1,
-[data-theme='dark'] .editor-content .w-md-editor-text h2,
-[data-theme='dark'] .editor-content .w-md-editor-text h3,
-[data-theme='dark'] .editor-content .w-md-editor-text h4,
-[data-theme='dark'] .editor-content .w-md-editor-text h5,
-[data-theme='dark'] .editor-content .w-md-editor-text h6 {
-  color: #ffffff !important;
+/* 文本润色上下文菜单 */
+.text-polish-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xs);
+  animation: contextMenuFadeIn 0.15s ease-out;
 }
 
-/* 浅色主题下的标题样式 */
-[data-theme='light'] .editor-content .w-md-editor-text h1,
-[data-theme='light'] .editor-content .w-md-editor-text h2,
-[data-theme='light'] .editor-content .w-md-editor-text h3,
-[data-theme='light'] .editor-content .w-md-editor-text h4,
-[data-theme='light'] .editor-content .w-md-editor-text h5,
-[data-theme='light'] .editor-content .w-md-editor-text h6 {
-  color: #1a1a1a !important;
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
 }
 
-/* 确保所有文本都有足够的对比度 */
-.editor-content .w-md-editor-text {
-  color: var(--color-text-primary) !important;
+.text-polish-context-menu .context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+  white-space: nowrap;
 }
 
-.editor-content .w-md-editor-text p,
-.editor-content .w-md-editor-text li,
-.editor-content .w-md-editor-text span {
-  color: var(--color-text-primary) !important;
+.text-polish-context-menu .context-menu-item:hover {
+  background: var(--color-bg-hover);
 }
 
-/* 使用编辑器默认的 blockquote 样式，只确保换行正确显示 */
-.editor-content .w-md-editor-text blockquote p {
-  margin: 0.5em 0;
-  display: block;
-}
-
-.editor-content .w-md-editor-text blockquote p:first-child {
-  margin-top: 0;
-}
-
-.editor-content .w-md-editor-text blockquote p:last-child {
-  margin-bottom: 0;
-}
-
-/* 确保 blockquote 内的换行符被保留 */
-.editor-content .w-md-editor-text blockquote br {
-  display: block;
-  content: "";
-  margin: 0.5em 0;
-}
-
-/* 确保 blockquote 内的文本不会合并 */
-.editor-content .w-md-editor-text blockquote > * {
-  display: block;
-}
-
-/* 确保 blockquote 内的文本节点也独立显示 */
-.editor-content .w-md-editor-text blockquote {
-  white-space: pre-line;
+.text-polish-context-menu .context-menu-item:active {
+  background: var(--color-bg-active);
 }
