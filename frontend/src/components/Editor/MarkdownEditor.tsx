@@ -347,7 +347,7 @@ export default function MarkdownEditor({
 
   // 处理文本选择，显示上下文菜单
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let lastMousePosition: { x: number; y: number } | null = null;
 
     const handleMouseMove = (e: MouseEvent) => {
