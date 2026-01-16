@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { articleService } from '../services/article';
 import { ImagePlan } from '../services/ai';
+import { draftStorage } from '../services/settings';
 import MarkdownEditor from '../components/Editor/MarkdownEditor';
 import './EditorPage.css';
 
@@ -14,6 +15,11 @@ export default function EditorPage() {
   const [imagePlans, setImagePlans] = useState<ImagePlan[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showDraftRestore, setShowDraftRestore] = useState(false);
+  const [restoredDraft, setRestoredDraft] = useState(false);
+
+  // 使用 ref 来跟踪自动保存
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -21,8 +27,50 @@ export default function EditorPage() {
       if (!isNaN(articleId)) {
         loadArticle(articleId);
       }
+    } else {
+      // 新建文章时，检查是否有草稿
+      const draft = draftStorage.getDraft();
+      if (draft && !restoredDraft) {
+        setShowDraftRestore(true);
+      }
     }
-  }, [isEdit, id]);
+  }, [isEdit, id, restoredDraft]);
+
+  // 自动保存草稿
+  useEffect(() => {
+    if (!isEdit && (title || content)) {
+      // 清除之前的定时器
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+
+      // 设置新的定时器，2秒后保存
+      autoSaveTimerRef.current = setTimeout(() => {
+        draftStorage.saveDraft(title, content, imagePlans);
+      }, 2000);
+    }
+
+    // 清理函数
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [title, content, imagePlans, isEdit]);
+
+  // 页面卸载时保存草稿
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!isEdit && (title || content)) {
+        draftStorage.saveDraft(title, content, imagePlans);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [title, content, imagePlans, isEdit]);
 
   const loadArticle = async (articleId: number) => {
     setLoading(true);
@@ -54,15 +102,45 @@ export default function EditorPage() {
 
   const handleSaveImagePlans = async (plans: ImagePlan[]) => {
     if (!isEdit || !id) return;
-    
+
     try {
-      await articleService.updateArticle(parseInt(id, 10), { 
-        imagePlans: plans 
+      await articleService.updateArticle(parseInt(id, 10), {
+        imagePlans: plans
       });
       setImagePlans(plans);
     } catch (error) {
       console.error('Failed to save image plans:', error);
     }
+  };
+
+  // 恢复草稿
+  const handleRestoreDraft = () => {
+    const draft = draftStorage.getDraft();
+    if (draft) {
+      setTitle(draft.title);
+      setContent(draft.content);
+      setImagePlans(draft.imagePlans);
+      setRestoredDraft(true);
+      setShowDraftRestore(false);
+    }
+  };
+
+  // 清除草稿
+  const handleClearDraft = () => {
+    if (window.confirm('确定要清除草稿吗？此操作不可撤销。')) {
+      draftStorage.clearDraft();
+      setTitle('');
+      setContent('');
+      setImagePlans(null);
+      setRestoredDraft(true);
+      setShowDraftRestore(false);
+    }
+  };
+
+  // 忽略草稿
+  const handleIgnoreDraft = () => {
+    setShowDraftRestore(false);
+    setRestoredDraft(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,11 +166,13 @@ export default function EditorPage() {
         await articleService.updateArticle(articleId, articleData);
       } else {
         await articleService.createArticle(articleData);
+        // 新建文章发布成功后，清除草稿
+        draftStorage.clearDraft();
       }
       navigate('/');
     } catch (err) {
-      const errorMessage = err instanceof Error 
-        ? err.message 
+      const errorMessage = err instanceof Error
+        ? err.message
         : (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '保存失败';
       alert(errorMessage);
       console.error('Failed to save article:', err);
@@ -107,6 +187,38 @@ export default function EditorPage() {
 
   return (
     <div className="editor-page">
+      {showDraftRestore && !isEdit && (
+        <div className="draft-restore-banner">
+          <div className="draft-restore-content">
+            <span className="draft-restore-message">
+              检测到未保存的草稿，是否恢复？
+            </span>
+            <div className="draft-restore-actions">
+              <button
+                type="button"
+                onClick={handleRestoreDraft}
+                className="btn btn-sm btn-primary"
+              >
+                恢复草稿
+              </button>
+              <button
+                type="button"
+                onClick={handleClearDraft}
+                className="btn btn-sm btn-secondary"
+              >
+                清除草稿
+              </button>
+              <button
+                type="button"
+                onClick={handleIgnoreDraft}
+                className="btn btn-sm btn-link"
+              >
+                忽略
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="editor-container">
         <form onSubmit={handleSubmit}>
           <div className="editor-header">
@@ -119,6 +231,16 @@ export default function EditorPage() {
               required
             />
             <div className="editor-actions">
+              {!isEdit && (title || content) && (
+                <button
+                  type="button"
+                  onClick={handleClearDraft}
+                  className="btn btn-sm btn-secondary"
+                  title="清除草稿"
+                >
+                  <span>重置</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => navigate('/')}

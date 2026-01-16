@@ -77,3 +77,57 @@ export const settingsService = {
     await api.post('/settings/selection', settings);
   },
 };
+
+// 草稿存储接口
+export interface ArticleDraft {
+  title: string;
+  content: string;
+  imagePlans: any[] | null;
+  savedAt: string;
+}
+
+// 本地存储服务 - 用于保存文章草稿
+export const draftStorage = {
+  DRAFT_KEY: 'article_draft',
+
+  // 保存草稿
+  saveDraft: (title: string, content: string, imagePlans: any[] | null = null) => {
+    try {
+      const draft: ArticleDraft = {
+        title,
+        content,
+        imagePlans,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('article_draft', JSON.stringify(draft));
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+    }
+  },
+
+  // 获取草稿
+  getDraft: (): ArticleDraft | null => {
+    try {
+      const draftStr = localStorage.getItem('article_draft');
+      if (!draftStr) return null;
+      return JSON.parse(draftStr) as ArticleDraft;
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+      return null;
+    }
+  },
+
+  // 清除草稿
+  clearDraft: () => {
+    try {
+      localStorage.removeItem('article_draft');
+    } catch (error) {
+      console.error('Failed to clear draft:', error);
+    }
+  },
+
+  // 检查是否有草稿
+  hasDraft: (): boolean => {
+    return !!localStorage.getItem('article_draft');
+  },
+};
