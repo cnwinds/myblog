@@ -218,7 +218,13 @@ export async function callEmbedding(text: string): Promise<EmbeddingResponse> {
  * 构建图片生成API的URL
  * 支持完整URL或基础域名两种配置方式
  */
-function buildImageApiUrl(apiBase: string): string {
+function buildImageApiUrl(apiBase: string, providerName?: string): string {
+  // 智谱AI使用固定URL
+  if (providerName && (providerName.includes('智谱') || providerName.includes('zhipu'))) {
+    return 'https://open.bigmodel.cn/api/paas/v4/images/generations';
+  }
+  
+  // 百炼（阿里云）API
   const base = apiBase || 'https://dashscope.aliyuncs.com';
   if (base.includes('/api/v1/services/aigc/')) return base;
   
@@ -232,10 +238,18 @@ function buildImageApiUrl(apiBase: string): string {
 
 /**
  * 解析图片生成API响应
- * 支持两种格式：output.choices（新API）和 output.results（旧API）
+ * 支持多种格式：智谱AI、百炼（新API）、百炼（旧API）
  */
-function parseImageResponse(data: any): ImageGenerationResponse {
-  // 格式1: output.choices (新API格式 - multimodal-generation/generation)
+function parseImageResponse(data: any, providerName?: string): ImageGenerationResponse {
+  // 智谱AI响应格式: { created, data: [{ url }] }
+  if (providerName && (providerName.includes('智谱') || providerName.includes('zhipu'))) {
+    if (data.data?.[0]?.url) {
+      return { imageUrl: data.data[0].url };
+    }
+    throw new Error('Invalid ZhipuAI response format: ' + JSON.stringify(data).substring(0, 200));
+  }
+  
+  // 格式1: output.choices (百炼新API格式 - multimodal-generation/generation)
   if (data.output?.choices?.[0]?.message?.content) {
     for (const item of data.output.choices[0].message.content) {
       if (item.image || item.image_url) {
@@ -246,7 +260,7 @@ function parseImageResponse(data: any): ImageGenerationResponse {
     }
   }
   
-  // 格式2: output.results (旧格式 - text2image/image-synthesis)
+  // 格式2: output.results (百炼旧格式 - text2image/image-synthesis)
   if (data.output?.results?.[0]) {
     const r = data.output.results[0];
     return {
@@ -265,7 +279,7 @@ function parseImageResponse(data: any): ImageGenerationResponse {
 
 /**
  * 调用文生图模型生成图片
- * 使用百炼（阿里云）接口
+ * 支持智谱AI和百炼（阿里云）接口
  */
 export async function callImageGeneration(
   prompt: string,
@@ -275,10 +289,36 @@ export async function callImageGeneration(
   if (provider.type !== 'image') throw new Error('Provider is not an image generation provider');
   if (!provider.apiKey) throw new Error('API key not configured');
 
-  const apiUrl = buildImageApiUrl(provider.apiBase || '');
-  const size = options?.width && options?.height 
-    ? `${options.width}*${options.height}` 
-    : '1024*1024';
+  const isZhipuAI = provider.name && (provider.name.includes('智谱') || provider.name.toLowerCase().includes('zhipu'));
+  const apiUrl = buildImageApiUrl(provider.apiBase || '', provider.name);
+
+  let requestBody: any;
+  
+  if (isZhipuAI) {
+    // 智谱AI API格式
+    const size = options?.width && options?.height 
+      ? `${options.width}x${options.height}` 
+      : '1280x1280';
+    
+    requestBody = {
+      model: model || 'glm-image',
+      prompt,
+      size,
+      quality: 'hd', // 默认高质量
+      watermark_enabled: true, // 默认启用水印
+    };
+  } else {
+    // 百炼（阿里云）API格式
+    const size = options?.width && options?.height 
+      ? `${options.width}*${options.height}` 
+      : '1024*1024';
+    
+    requestBody = {
+      model,
+      input: { messages: [{ role: 'user', content: [{ text: prompt }] }] },
+      parameters: { size, prompt_extend: false },
+    };
+  }
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -286,11 +326,7 @@ export async function callImageGeneration(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${provider.apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      input: { messages: [{ role: 'user', content: [{ text: prompt }] }] },
-      parameters: { size, prompt_extend: false },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -305,5 +341,5 @@ export async function callImageGeneration(
     throw new Error(errorMessage);
   }
 
-  return parseImageResponse(await response.json());
+  return parseImageResponse(await response.json(), provider.name);
 }

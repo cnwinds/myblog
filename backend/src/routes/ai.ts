@@ -3,6 +3,7 @@ import { authenticateToken } from '../middleware/auth';
 import { callLLM, callEmbedding, callImageGeneration, callLLMStream } from '../services/aiService';
 import { IncrementalJSONParser } from '../utils/jsonStreamParser';
 import { SettingModel } from '../models/Setting';
+import { ProviderModel } from '../models/Provider';
 
 const router = Router();
 
@@ -174,7 +175,7 @@ router.post('/embedding', authenticateToken, async (req, res) => {
 });
 
 // 登录用户可以访问AI功能
-// 调用文生图模型生成图片（使用百炼接口）
+// 调用文生图模型生成图片（支持智谱AI和百炼接口）
 router.post('/image', authenticateToken, async (req, res) => {
   try {
     const { prompt, width, height, aspectRatio, n } = req.body;
@@ -183,12 +184,23 @@ router.post('/image', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
+    // 获取提供商信息以确定尺寸转换规则
+    const settingStr = SettingModel.get('image_provider');
+    if (!settingStr) {
+      return res.status(400).json({ error: 'Image provider not configured' });
+    }
+    const setting = JSON.parse(settingStr);
+    const provider = ProviderModel.findById(setting.providerId);
+    if (!provider) {
+      return res.status(400).json({ error: 'Image provider not found' });
+    }
+    
     // 如果提供了 aspectRatio，转换为 width 和 height
     let finalWidth = width;
     let finalHeight = height;
     
     if (aspectRatio && !width && !height) {
-      const dimensions = convertAspectRatioToDimensions(aspectRatio);
+      const dimensions = convertAspectRatioToDimensions(aspectRatio, provider.name);
       finalWidth = dimensions.width;
       finalHeight = dimensions.height;
     }
@@ -203,43 +215,75 @@ router.post('/image', authenticateToken, async (req, res) => {
 
 /**
  * 将宽高比转换为具体的宽高尺寸
- * 百炼API推荐尺寸：
- * - 3:4 (竖版) -> 768*1024
- * - 9:16 (竖版) -> 720*1280
- * - 16:9 (横版) -> 1280*720
- * - 4:3 (横版) -> 1024*768
- * - 1:1 (方图) -> 1024*1024
+ * 支持智谱AI和百炼（阿里云）两种提供商的推荐尺寸
  */
-function convertAspectRatioToDimensions(aspectRatio: string): { width: number; height: number } {
+function convertAspectRatioToDimensions(
+  aspectRatio: string,
+  providerName?: string
+): { width: number; height: number } {
   const ratio = aspectRatio.trim().toLowerCase();
+  const isZhipuAI = providerName && (providerName.includes('智谱') || providerName.includes('zhipu'));
   
-  switch (ratio) {
-    case '3:4':
-      return { width: 768, height: 1024 };
-    case '9:16':
-      return { width: 720, height: 1280 };
-    case '16:9':
-      return { width: 1280, height: 720 };
-    case '4:3':
-      return { width: 1024, height: 768 };
-    case '1:1':
-      return { width: 1024, height: 1024 };
-    default:
-      // 尝试解析自定义比例，如 "2:3" -> 768*1152
-      const match = ratio.match(/^(\d+):(\d+)$/);
-      if (match) {
-        const w = parseInt(match[1], 10);
-        const h = parseInt(match[2], 10);
-        // 按比例计算，保持总像素在合理范围内（约 786432 像素，接近 1024*768）
-        const baseSize = 768;
-        const scale = baseSize / w;
-        return {
-          width: Math.round(w * scale),
-          height: Math.round(h * scale),
-        };
-      }
-      // 默认使用 3:4
-      return { width: 768, height: 1024 };
+  if (isZhipuAI) {
+    // 智谱AI推荐尺寸（根据文档）
+    switch (ratio) {
+      case '3:4':
+        return { width: 1088, height: 1472 };
+      case '9:16':
+        return { width: 960, height: 1728 };
+      case '16:9':
+        return { width: 1728, height: 960 };
+      case '4:3':
+        return { width: 1472, height: 1088 };
+      case '1:1':
+        return { width: 1280, height: 1280 };
+      default:
+        // 尝试解析自定义比例
+        const match = ratio.match(/^(\d+):(\d+)$/);
+        if (match) {
+          const w = parseInt(match[1], 10);
+          const h = parseInt(match[2], 10);
+          // 智谱AI推荐尺寸范围：1024px-2048px，且需为32的整数倍
+          const baseSize = 1280;
+          const scale = baseSize / w;
+          const width = Math.round(w * scale);
+          const height = Math.round(h * scale);
+          // 确保是32的整数倍
+          return {
+            width: Math.floor(width / 32) * 32,
+            height: Math.floor(height / 32) * 32,
+          };
+        }
+        return { width: 1280, height: 1280 };
+    }
+  } else {
+    // 百炼（阿里云）推荐尺寸
+    switch (ratio) {
+      case '3:4':
+        return { width: 768, height: 1024 };
+      case '9:16':
+        return { width: 720, height: 1280 };
+      case '16:9':
+        return { width: 1280, height: 720 };
+      case '4:3':
+        return { width: 1024, height: 768 };
+      case '1:1':
+        return { width: 1024, height: 1024 };
+      default:
+        // 尝试解析自定义比例
+        const match = ratio.match(/^(\d+):(\d+)$/);
+        if (match) {
+          const w = parseInt(match[1], 10);
+          const h = parseInt(match[2], 10);
+          const baseSize = 768;
+          const scale = baseSize / w;
+          return {
+            width: Math.round(w * scale),
+            height: Math.round(h * scale),
+          };
+        }
+        return { width: 768, height: 1024 };
+    }
   }
 }
 

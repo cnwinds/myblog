@@ -57,8 +57,8 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
         setEmbeddingModels('text-embedding-3-small, text-embedding-3-large');
         setApiBase('https://api.openai.com/v1');
       } else if (defaultType === 'image') {
-        setImageModels('');
-        setApiBase('https://dashscope.aliyuncs.com');
+        setImageModels('glm-image, cogview-4, cogview-3-flash');
+        setApiBase('https://open.bigmodel.cn');
       }
     } else {
       // 默认类型为 llm
@@ -66,6 +66,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
       setApiBase('https://api.openai.com/v1');
     }
   }, [provider, defaultType]);
+
 
   // 解析逗号分隔的模型字符串
   const parseModels = (modelString: string): string[] => {
@@ -139,8 +140,26 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="例如: OpenAI"
+              onChange={(e) => {
+                const newName = e.target.value;
+                setName(newName);
+                // 当类型为image且名称变化时，自动调整配置
+                if (type === 'image' && !provider) {
+                  const isZhipu = newName.includes('智谱') || newName.toLowerCase().includes('zhipu');
+                  if (isZhipu) {
+                    setApiBase('https://open.bigmodel.cn');
+                    if (!imageModels || imageModels === '') {
+                      setImageModels('glm-image, cogview-4, cogview-3-flash');
+                    }
+                  } else if (apiBase === 'https://open.bigmodel.cn') {
+                    setApiBase('https://dashscope.aliyuncs.com');
+                    if (imageModels === 'glm-image, cogview-4, cogview-3-flash') {
+                      setImageModels('');
+                    }
+                  }
+                }
+              }}
+              placeholder={type === 'image' ? '例如: 文生图智谱 或 文生图BaiLian' : '例如: OpenAI'}
               required
               disabled={loading}
             />
@@ -169,8 +188,14 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                 } else if (newType === 'image') {
                   setLlmModels('');
                   setEmbeddingModels('');
-                  setImageModels('');
-                  setApiBase('https://dashscope.aliyuncs.com');
+                  // 根据名称判断是智谱AI还是百炼
+                  if (name && (name.includes('智谱') || name.includes('zhipu'))) {
+                    setImageModels('glm-image, cogview-4, cogview-3-flash');
+                    setApiBase('https://open.bigmodel.cn');
+                  } else {
+                    setImageModels('');
+                    setApiBase('https://dashscope.aliyuncs.com');
+                  }
                 } else if (newType === 'both') {
                   setImageModels('');
                   setLlmModels('gpt-4, gpt-3.5-turbo');
@@ -185,7 +210,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                 // 根据 defaultType 决定显示哪些选项
                 if (defaultType === 'image' && !provider) {
                   // 从文生图提供商管理页面添加时，只显示文生图选项
-                  return <option value="image">文生图BaiLian</option>;
+                  return <option value="image">文生图</option>;
                 } else if (defaultType === 'llm' && !provider) {
                   // 从LLM配置页面添加时，只显示大模型相关选项（不含文生图）
                   return (
@@ -205,7 +230,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                       <option value="llm">大模型 OpenAI</option>
                       <option value="embedding">向量模型 OpenAI</option>
                       <option value="both">大模型+向量模型 OpenAI</option>
-                      <option value="image">文生图BaiLian</option>
+                      <option value="image">文生图</option>
                     </>
                   );
                 }
