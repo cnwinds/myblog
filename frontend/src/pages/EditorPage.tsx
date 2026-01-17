@@ -19,7 +19,6 @@ export default function EditorPage() {
   const [autoSaving, setAutoSaving] = useState(false);
 
   // 使用 ref 来跟踪自动保存
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<{ title: string; content: string; category: string }>({ title: '', content: '', category: '' });
   const currentValuesRef = useRef<{ title: string; content: string; category: string; imagePlans: ImagePlan[] | null; articleId: number | null }>({
     title: '',
@@ -251,14 +250,12 @@ export default function EditorPage() {
         published: false, // 保存为草稿
       };
 
-      let savedArticleId = currentArticleId;
       if (currentArticleId) {
         // 更新现有文章
         await articleService.updateArticle(currentArticleId, articleData);
       } else {
         // 创建新草稿
         const newArticle = await articleService.createArticle(articleData);
-        savedArticleId = newArticle.id;
         setCurrentArticleId(newArticle.id);
         currentValuesRef.current.articleId = newArticle.id;
         // 更新URL但不刷新页面

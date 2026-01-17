@@ -208,7 +208,7 @@ export default function LabList() {
           <article
             key={article.id}
             className={`lab-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${canDrag ? 'draggable' : ''}`}
-            draggable={canDrag}
+            draggable={canDrag || undefined}
             onDragStart={(e) => handleDragStart(e, index)}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(e, index)}
