@@ -42,8 +42,31 @@ export default function MarkdownEditor({
   const { theme } = useTheme();
 
   const handleInsertImage = (markdown: string) => {
-    const newValue = value + '\n' + markdown;
+    // 获取当前光标位置
+    const textarea = containerRef.current?.querySelector('textarea') as HTMLTextAreaElement;
+    let insertPos = value.length;
+    
+    if (textarea && (document.activeElement === textarea || containerRef.current?.contains(document.activeElement))) {
+      insertPos = textarea.selectionStart || value.length;
+    }
+    
+    // 在光标位置插入Markdown图片语法
+    const before = value.substring(0, insertPos);
+    const after = value.substring(insertPos);
+    const prefix = before && !before.endsWith('\n') && before.length > 0 ? '\n' : '';
+    const suffix = after && !after.startsWith('\n') ? '\n' : '';
+    const newValue = before + prefix + markdown + suffix + after;
+    
     onChange(newValue);
+    
+    // 恢复光标位置（在插入内容之后）
+    setTimeout(() => {
+      if (textarea) {
+        const newPos = insertPos + prefix.length + markdown.length + suffix.length;
+        textarea.setSelectionRange(newPos, newPos);
+        textarea.focus();
+      }
+    }, 0);
   };
 
   // 查找合适的插入位置（段落边界或句子边界）

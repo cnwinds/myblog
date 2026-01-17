@@ -14,7 +14,7 @@ export default function ArticleList() {
 
   const loadArticles = async () => {
     try {
-      const data = await articleService.getArticles();
+      const data = await articleService.getArticles('blog');
       setArticles(data);
     } catch (error) {
       console.error('Failed to load articles:', error);

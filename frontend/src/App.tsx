@@ -6,6 +6,7 @@ import { useAuth } from './hooks/useAuth';
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const EditorPage = lazy(() => import('./pages/EditorPage'));
+const DraftsPage = lazy(() => import('./pages/DraftsPage'));
 const ArticleDetail = lazy(() => import('./components/Article/ArticleDetail'));
 
 // 加载中的占位组件
@@ -35,6 +36,7 @@ function App() {
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/lab" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/editor"
@@ -52,7 +54,15 @@ function App() {
               </PrivateRoute>
             }
           />
-          <Route path="/article/:id" element={<ArticleDetail />} />
+                <Route
+                  path="/drafts"
+                  element={
+                    <PrivateRoute>
+                      <DraftsPage />
+                    </PrivateRoute>
+                  }
+                />
+                <Route path="/article/:id" element={<ArticleDetail />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

@@ -13,7 +13,12 @@ const isPublicRoute = (url: string, method: string = 'get') => {
   const methodLower = method.toLowerCase();
   
   // GET 请求到 /articles 或 /articles/:id 都是公开的
+  // 但是 /articles/unpublished 需要认证，所以要排除
   if (methodLower === 'get' && url.startsWith('/articles')) {
+    // 排除需要认证的路由
+    if (url === '/articles/unpublished') {
+      return false;
+    }
     return true;
   }
   

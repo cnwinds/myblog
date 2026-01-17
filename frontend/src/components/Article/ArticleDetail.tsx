@@ -60,7 +60,9 @@ export default function ArticleDetail() {
 
     try {
       await articleService.deleteArticle(article.id);
-      navigate('/');
+      // 删除后根据文章分类返回对应列表
+      const backLink = article.category === 'lab' ? '/lab' : '/';
+      navigate(backLink);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '删除失败';
       alert(errorMessage);
@@ -113,11 +115,14 @@ export default function ArticleDetail() {
 
   const isAuthor = isAuthenticated && user?.id === article.authorId;
   const isUpdated = article.updatedAt !== article.createdAt;
+  
+  // 根据文章分类决定返回链接
+  const backLink = article.category === 'lab' ? '/lab' : '/';
 
   return (
     <div className="article-detail">
       <div className="article-header">
-        <Link to="/" className="back-link">← 返回列表</Link>
+        <Link to={backLink} className="back-link">← 返回列表</Link>
         {isAuthor && (
           <div className="article-actions">
             <Link to={`/edit/${article.id}`} className="btn btn-primary edit-btn">
@@ -150,7 +155,7 @@ export default function ArticleDetail() {
         </div>
       </article>
       <div className="article-footer">
-        <Link to="/" className="back-link">← 返回列表</Link>
+        <Link to={backLink} className="back-link">← 返回列表</Link>
       </div>
       {previewImage && (
         <ImagePreview imageUrl={previewImage} onClose={handleClosePreview} />
