@@ -53,6 +53,13 @@
   box-shadow: var(--shadow-sm);
 }
 
+.drawer-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+}
+
 .drawer-header h2 {
   margin: 0;
   color: var(--color-text-primary);
@@ -100,6 +107,15 @@
 .logout-btn {
   padding: var(--spacing-xs) var(--spacing-md);
   font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.logout-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
 }
 
 .drawer-content {

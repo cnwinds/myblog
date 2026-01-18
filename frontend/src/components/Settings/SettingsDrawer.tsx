@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiLogOut } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import ProviderManagement from './ProviderManagement';
 import ProviderSelection from './ProviderSelection';
@@ -59,13 +59,16 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
       {/* 抽屉 */}
       <div className={`settings-drawer ${isOpen ? 'drawer-open' : ''}`}>
         <div className="drawer-header">
-          <h2>系统设置</h2>
-          <div className="drawer-header-actions">
-            <button onClick={handleLogout} className="btn btn-secondary logout-btn">
-              <span>登出</span>
-            </button>
+          <div className="drawer-header-left">
             <button onClick={onClose} className="drawer-close-btn" title="关闭">
               <FiX />
+            </button>
+            <h2>系统设置</h2>
+          </div>
+          <div className="drawer-header-actions">
+            <button onClick={handleLogout} className="btn btn-secondary logout-btn">
+              <FiLogOut />
+              <span>登出</span>
             </button>
           </div>
         </div>

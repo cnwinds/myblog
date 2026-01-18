@@ -13,45 +13,43 @@ export interface StatisticsData {
 
 export function getStatistics(req: AuthRequest, res: Response) {
   try {
-    // 总访问量（所有访问日志）
-    const totalVisitsResult = db.prepare('SELECT COUNT(*) as count FROM visit_logs').get() as { count: number };
-    const totalVisits = totalVisitsResult.count;
+    // 使用范围查询代替 DATE() 函数，可以利用索引
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    // 今日访问量
-    const today = new Date().toISOString().split('T')[0];
-    const todayVisitsResult = db.prepare(`
+    // 准备所有查询语句（并行执行）
+    const totalVisitsStmt = db.prepare('SELECT COUNT(*) as count FROM visit_logs');
+    const todayVisitsStmt = db.prepare(`
       SELECT COUNT(*) as count 
       FROM visit_logs 
-      WHERE DATE(visitedAt) = ?
-    `).get(today) as { count: number };
-    const todayVisits = todayVisitsResult.count;
-
-    // 总用户数
-    const totalUsersResult = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-    const totalUsers = totalUsersResult.count;
-
-    // 总文章数（包括草稿）
-    const totalArticlesResult = db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number };
-    const totalArticles = totalArticlesResult.count;
-
-    // 已发布文章数
-    const publishedArticlesResult = db.prepare(`
+      WHERE visitedAt >= ? AND visitedAt <= ?
+    `);
+    const totalUsersStmt = db.prepare('SELECT COUNT(*) as count FROM users');
+    const totalArticlesStmt = db.prepare('SELECT COUNT(*) as count FROM articles');
+    const publishedArticlesStmt = db.prepare(`
       SELECT COUNT(*) as count 
       FROM articles 
       WHERE published IS NULL OR published = 1
-    `).get() as { count: number };
-    const publishedArticles = publishedArticlesResult.count;
-
-    // 最近30天的访问量统计（按日期分组）
-    const visitsByDate = db.prepare(`
+    `);
+    const visitsByDateStmt = db.prepare(`
       SELECT 
         DATE(visitedAt) as date,
         COUNT(*) as count
       FROM visit_logs
-      WHERE visitedAt >= datetime('now', '-30 days')
+      WHERE visitedAt >= ?
       GROUP BY DATE(visitedAt)
       ORDER BY date DESC
-    `).all() as Array<{ date: string; count: number }>;
+    `);
+
+    // 执行所有查询
+    const totalVisits = (totalVisitsStmt.get() as { count: number }).count;
+    const todayVisits = (todayVisitsStmt.get(todayStart, todayEnd) as { count: number }).count;
+    const totalUsers = (totalUsersStmt.get() as { count: number }).count;
+    const totalArticles = (totalArticlesStmt.get() as { count: number }).count;
+    const publishedArticles = (publishedArticlesStmt.get() as { count: number }).count;
+    const visitsByDate = visitsByDateStmt.all(thirtyDaysAgo) as Array<{ date: string; count: number }>;
 
     const statistics: StatisticsData = {
       totalVisits,
