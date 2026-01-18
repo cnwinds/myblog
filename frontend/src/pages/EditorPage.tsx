@@ -52,26 +52,21 @@ export default function EditorPage() {
 
   // 每分钟自动保存草稿到数据库
   useEffect(() => {
-    // 如果标题和内容都为空，不保存
-    if (!title.trim() && !content.trim()) {
-      return;
-    }
-
-    // 如果正在发布，不自动保存
-    if (isPublishingRef.current) {
-      return;
-    }
-
     // 设置定时器，每分钟自动保存一次
     const intervalId = setInterval(async () => {
-      // 再次检查是否正在发布
+      // 如果正在发布，不自动保存
       if (isPublishingRef.current) {
         return;
       }
+      
+      // 从 ref 获取最新值
+      const values = currentValuesRef.current;
+      
       // 检查是否有内容
-      if (!title.trim() && !content.trim()) {
+      if (!values.title.trim() && !values.content.trim()) {
         return;
       }
+      
       await autoSaveDraft();
     }, 60000); // 60秒 = 1分钟
 
@@ -79,7 +74,7 @@ export default function EditorPage() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [title, content, category, imagePlans, currentArticleId]);
+  }, []); // 空依赖数组，定时器只创建一次
 
   // 页面卸载时保存草稿
   useEffect(() => {
@@ -168,31 +163,37 @@ export default function EditorPage() {
       return;
     }
 
-    // 如果标题和内容都为空，不保存
-    if (!title.trim() && !content.trim()) {
+    // 防止重复保存
+    if (autoSaving) {
       return;
     }
 
-    // 防止重复保存
-    if (autoSaving) {
+    // 从 ref 获取最新值，确保使用最新的状态
+    const values = currentValuesRef.current;
+
+    // 如果标题和内容都为空，不保存
+    if (!values.title.trim() && !values.content.trim()) {
       return;
     }
 
     setAutoSaving(true);
     try {
       const articleData = {
-        title: title.trim() || '未命名文章',
-        content,
-        category,
-        imagePlans: imagePlans || undefined,
+        title: values.title.trim() || '未命名文章',
+        content: values.content,
+        category: values.category,
+        imagePlans: values.imagePlans || undefined,
         published: false, // 自动保存始终为草稿
       };
 
-      if (currentArticleId) {
+      // 使用 ref 中的 articleId，确保获取最新的 ID
+      const articleId = values.articleId;
+
+      if (articleId) {
         // 检查文章当前状态
         try {
           // 先尝试获取已发布的文章
-          const publishedArticle = await articleService.getArticle(currentArticleId);
+          const publishedArticle = await articleService.getArticle(articleId);
           // 如果文章已经发布，不自动保存（避免覆盖已发布的内容）
           if (publishedArticle && publishedArticle.published === 1) {
             return;
@@ -202,14 +203,18 @@ export default function EditorPage() {
         }
 
         // 更新草稿（只更新内容，published 保持为 false）
-        await articleService.updateArticle(currentArticleId, articleData);
+        await articleService.updateArticle(articleId, articleData);
       } else {
         // 创建新草稿
         const newArticle = await articleService.createArticle(articleData);
-        setCurrentArticleId(newArticle.id);
-        currentValuesRef.current.articleId = newArticle.id;
+        const newArticleId = newArticle.id;
+        
+        // 更新所有相关的 ID 引用
+        setCurrentArticleId(newArticleId);
+        currentValuesRef.current.articleId = newArticleId;
+        
         // 更新URL但不刷新页面
-        window.history.replaceState(null, '', `/edit/${newArticle.id}`);
+        window.history.replaceState(null, '', `/edit/${newArticleId}`);
       }
 
       console.log('草稿已自动保存');
