@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
-import ThemeToggle from '../ThemeToggle';
 import ProviderManagement from './ProviderManagement';
 import ProviderSelection from './ProviderSelection';
 import ImageProviderManagement from './ImageProviderManagement';
 import ImageProviderSelection from './ImageProviderSelection';
 import ChangePassword from './ChangePassword';
+import Statistics from './Statistics';
 import SettingsTabs from './SettingsTabs';
 import './SettingsDrawer.css';
 
@@ -61,8 +61,6 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
         <div className="drawer-header">
           <h2>系统设置</h2>
           <div className="drawer-header-actions">
-            <ThemeToggle />
-            <span className="username">{user?.username}</span>
             <button onClick={handleLogout} className="btn btn-secondary logout-btn">
               <span>登出</span>
             </button>
@@ -78,6 +76,11 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
             isOpen ? (
               <SettingsTabs
                 tabs={[
+                  {
+                    id: 'statistics',
+                    label: '数据统计',
+                    content: <Statistics />,
+                  },
                   {
                     id: 'llm',
                     label: 'LLM配置',
@@ -104,7 +107,7 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                     content: <ChangePassword />,
                   },
                 ]}
-                defaultTab="llm"
+                defaultTab="statistics"
               />
             ) : null
           ) : (

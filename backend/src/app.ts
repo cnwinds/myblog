@@ -11,6 +11,8 @@ import articleRoutes from './routes/articles';
 import uploadRoutes from './routes/upload';
 import settingsRoutes from './routes/settings';
 import aiRoutes from './routes/ai';
+import statisticsRoutes from './routes/statistics';
+import visitRoutes from './routes/visit';
 
 dotenv.config();
 
@@ -62,6 +64,8 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/statistics', statisticsRoutes);
+app.use('/api/visit', visitRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {

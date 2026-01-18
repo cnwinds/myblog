@@ -100,6 +100,26 @@ export function initDatabase() {
     )
   `);
 
+  // 创建访问日志表（用于统计访问量）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS visit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      articleId INTEGER,
+      ipAddress TEXT,
+      userAgent TEXT,
+      visitedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (articleId) REFERENCES articles(id)
+    )
+  `);
+
+  // 创建索引以提高查询性能
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_visit_logs_articleId ON visit_logs(articleId)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_visit_logs_visitedAt ON visit_logs(visitedAt)`);
+  } catch (error: any) {
+    console.warn('Failed to create visit_logs indexes:', error.message);
+  }
+
   console.log('Database initialized successfully');
 }
 

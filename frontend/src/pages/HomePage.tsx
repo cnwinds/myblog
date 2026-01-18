@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiSettings } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
+import { visitService } from '../services/visit';
 import ArticleList from '../components/Article/ArticleList';
 import LabList from '../components/Article/LabList';
 import ThemeToggle from '../components/ThemeToggle';
@@ -25,6 +26,11 @@ export default function HomePage() {
       navigate('/');
     }
   };
+
+  // 记录首页访问量
+  useEffect(() => {
+    visitService.recordVisit(null);
+  }, []);
 
   return (
     <div className="home-page">
@@ -55,7 +61,6 @@ export default function HomePage() {
                   <Link to="/editor" className="nav-link">写文章</Link>
                   <Link to="/drafts" className="nav-link">草稿箱</Link>
                   <div className="nav-divider"></div>
-                  <span className="user-name">{user?.username}</span>
                   <ThemeToggle />
                   <button 
                     onClick={() => setIsSettingsOpen(true)} 
@@ -66,11 +71,7 @@ export default function HomePage() {
                   </button>
                 </>
               ) : (
-                <>
-                  <Link to="/login" className="nav-link">登录</Link>
-                  <div className="nav-divider"></div>
-                  <ThemeToggle />
-                </>
+                <ThemeToggle />
               )}
             </nav>
           </div>

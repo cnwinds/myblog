@@ -22,6 +22,11 @@ const isPublicRoute = (url: string, method: string = 'get') => {
     return true;
   }
   
+  // POST 请求到 /visit 是公开的（记录访问量）
+  if (methodLower === 'post' && url.startsWith('/visit')) {
+    return true;
+  }
+  
   return false;
 };
 

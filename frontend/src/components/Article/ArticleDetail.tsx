@@ -5,6 +5,7 @@ import remarkBreaks from 'remark-breaks';
 import { articleService, Article } from '../../services/article';
 import { useAuth } from '../../hooks/useAuth';
 import { formatChinaDateTime } from '../../utils/dateUtils';
+import { visitService } from '../../services/visit';
 import ImagePreview from './ImagePreview';
 import './ArticleDetail.css';
 
@@ -46,6 +47,8 @@ export default function ArticleDetail() {
         return;
       }
       loadArticle(articleId);
+      // 记录访问量
+      visitService.recordVisit(articleId);
     }
   }, [id, loadArticle]);
 

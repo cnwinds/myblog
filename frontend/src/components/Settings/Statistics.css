@@ -1,0 +1,130 @@
+.statistics-container {
+  padding: 20px;
+}
+
+.statistics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.statistics-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.refresh-btn {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.statistics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary, #333);
+}
+
+.statistics-chart {
+  margin-top: 32px;
+}
+
+.statistics-chart h4 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.chart-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 200px;
+  padding: 16px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.chart-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 30px;
+  height: 100%;
+}
+
+.bar-fill {
+  width: 100%;
+  background: linear-gradient(to top, #4a90e2, #5ba3f5);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: opacity 0.2s;
+  cursor: pointer;
+}
+
+.bar-fill:hover {
+  opacity: 0.8;
+}
+
+.bar-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+.statistics-loading,
+.statistics-error {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary, #666);
+}
+
+.statistics-error {
+  color: var(--error-color, #e74c3c);
+}
+
+/* 暗色主题支持 */
+[data-theme="dark"] .stat-card {
+  background: var(--card-bg, #2a2a2a);
+  border-color: var(--border-color, #404040);
+}
+
+[data-theme="dark"] .stat-value {
+  color: var(--text-primary, #fff);
+}
+
+[data-theme="dark"] .chart-container {
+  background: var(--card-bg, #2a2a2a);
+  border-color: var(--border-color, #404040);
+}
