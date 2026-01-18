@@ -94,13 +94,6 @@ export default function TextProcessDialog({
         </div>
         <div className="text-polish-content">
           <div className="text-section">
-            <h4>原文</h4>
-            <div className="text-display original-text">
-              {selectedText}
-            </div>
-          </div>
-
-          <div className="text-section">
             <h4>自定义提示词</h4>
             <textarea
               className="requirement-input"
@@ -111,34 +104,43 @@ export default function TextProcessDialog({
             />
           </div>
 
-          <div className="text-section">
-            <div className="section-header">
-              <h4>{config.actionLabel}后</h4>
-              {!loading && (
-                <button
-                  onClick={handleProcess}
-                  className="btn btn-secondary refresh-btn"
-                  title={`重新${config.actionLabel}`}
-                  disabled={loading}
-                >
-                  {processedText ? `重新${config.actionLabel}` : `开始${config.actionLabel}`}
-                </button>
+          <div className="text-comparison-container">
+            <div className="text-section comparison-section">
+              <h4>原文</h4>
+              <div className="text-display original-text">
+                {selectedText}
+              </div>
+            </div>
+
+            <div className="text-section comparison-section">
+              <div className="section-header">
+                <h4>{config.actionLabel}后</h4>
+                {!loading && (
+                  <button
+                    onClick={handleProcess}
+                    className="btn btn-secondary refresh-btn"
+                    title={`重新${config.actionLabel}`}
+                    disabled={loading}
+                  >
+                    {processedText ? `重新${config.actionLabel}` : `开始${config.actionLabel}`}
+                  </button>
+                )}
+              </div>
+              {loading ? (
+                <div className="loading-container">
+                  <div className="loading-spinner"></div>
+                  <span>AI正在{config.actionLabel}中...</span>
+                </div>
+              ) : (
+                <textarea
+                  className="text-editor"
+                  value={editableText}
+                  onChange={(e) => setEditableText(e.target.value)}
+                  placeholder={`${config.actionLabel}后的内容将显示在这里，您可以进行修改`}
+                  rows={8}
+                />
               )}
             </div>
-            {loading ? (
-              <div className="loading-container">
-                <div className="loading-spinner"></div>
-                <span>AI正在{config.actionLabel}中...</span>
-              </div>
-            ) : (
-              <textarea
-                className="text-editor"
-                value={editableText}
-                onChange={(e) => setEditableText(e.target.value)}
-                placeholder={`${config.actionLabel}后的内容将显示在这里，您可以进行修改`}
-                rows={8}
-              />
-            )}
           </div>
 
           {error && <div className="error-message">{error}</div>}

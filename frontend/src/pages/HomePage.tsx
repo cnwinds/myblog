@@ -11,7 +11,7 @@ import logo from '../assets/logo.svg';
 import './HomePage.css';
 
 export default function HomePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();

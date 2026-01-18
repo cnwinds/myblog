@@ -368,94 +368,99 @@ export default function MarkdownEditor({
     };
   }, [value, onChange, isAuthenticated]);
 
-  // 处理文本选择，显示上下文菜单
+  // 处理鼠标右键，显示上下文菜单
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let lastMousePosition: { x: number; y: number } | null = null;
+    const handleContextMenu = (e: MouseEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // 记录鼠标位置
-      lastMousePosition = { x: e.clientX, y: e.clientY };
-    };
+      // 找到 textarea 元素
+      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+      if (!textarea) return;
 
-    const handleSelection = () => {
-      // 延迟执行，让 MDEditor 完成内部状态更新
-      timeoutId = setTimeout(() => {
-        const selection = window.getSelection();
-        const selectedText = selection?.toString().trim();
-
-        // 检查是否在编辑器区域内
-        const container = containerRef.current;
-        if (!container || !selection || !selectedText) {
-          return;
-        }
-
-        // 检查选区是否在编辑器内
-        try {
-          const range = selection.getRangeAt(0);
-          if (!container.contains(range.commonAncestorContainer)) {
-            return;
-          }
-        } catch (e) {
-          // 如果获取 range 失败，直接返回
-          return;
-        }
-
-        // 找到 textarea 元素
-        const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-        if (!textarea) return;
-
-        // 只有在 textarea 内选择文本时才显示菜单
-        if (document.activeElement !== textarea) {
-          return;
-        }
-
-        // 获取选中的文本范围
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-
-        if (start === end) {
-          // 没有选中文本，隐藏菜单
-          setShowContextMenu(false);
-          return;
-        }
-
-        setSelectedText(selectedText);
-        setSelectedTextRange({ start, end });
-
-        // 使用鼠标位置来显示菜单
-        if (lastMousePosition) {
-          setContextMenuPosition({
-            x: lastMousePosition.x,
-            y: lastMousePosition.y - 10, // 稍微向上偏移
-          });
-          setShowContextMenu(true);
-        }
-      }, 10);
-    };
-
-    // 监听鼠标移动，记录鼠标位置
-    document.addEventListener('mousemove', handleMouseMove);
-    // 监听鼠标抬起事件（松开鼠标时触发）
-    document.addEventListener('mouseup', handleSelection);
-    // 也监听键盘事件（某些情况下使用 Shift+方向键选择文本）
-    document.addEventListener('keyup', (e) => {
-      if (e.shiftKey) {
-        handleSelection();
+      // 检查点击目标是否在textarea或其父元素内
+      const target = e.target as Node;
+      if (target !== textarea && !textarea.contains(target)) {
+        return;
       }
-    });
+
+      // 阻止默认的右键菜单
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 获取选中的文本
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+
+      if (start === end) {
+        // 没有选中文本，不显示菜单
+        setShowContextMenu(false);
+        return;
+      }
+
+      // 获取选中的文本内容
+      const selectedText = textarea.value.substring(start, end).trim();
+      if (!selectedText) {
+        setShowContextMenu(false);
+        return;
+      }
+
+      // 设置选中的文本和范围
+      setSelectedText(selectedText);
+      setSelectedTextRange({ start, end });
+
+      // 使用鼠标右键位置来显示菜单
+      setContextMenuPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      setShowContextMenu(true);
+    };
+
+    // 定期检查textarea是否存在并绑定事件
+    const checkAndBind = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+      if (textarea) {
+        // 直接在textarea上绑定事件
+        textarea.addEventListener('contextmenu', handleContextMenu, true);
+        return true;
+      }
+      return false;
+    };
+
+    // 立即尝试绑定
+    if (!checkAndBind()) {
+      // 如果textarea还不存在，延迟绑定
+      const timer = setInterval(() => {
+        if (checkAndBind()) {
+          clearInterval(timer);
+        }
+      }, 100);
+
+      // 10秒后停止尝试
+      setTimeout(() => clearInterval(timer), 10000);
+
+      return () => {
+        clearInterval(timer);
+        const textarea = containerRef.current?.querySelector('textarea') as HTMLTextAreaElement;
+        if (textarea) {
+          textarea.removeEventListener('contextmenu', handleContextMenu, true);
+        }
+      };
+    }
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleSelection);
-      document.removeEventListener('keyup', handleSelection);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      const textarea = containerRef.current?.querySelector('textarea') as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.removeEventListener('contextmenu', handleContextMenu, true);
       }
     };
-  }, []);
+  }, [value]); // 当value变化时重新绑定
 
-  // 点击其他地方时隐藏上下文菜单
+  // 点击其他地方或右键点击其他地方时隐藏上下文菜单
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       if (showContextMenu) {
@@ -466,9 +471,20 @@ export default function MarkdownEditor({
       }
     };
 
+    const handleContextMenu = (e: MouseEvent) => {
+      if (showContextMenu) {
+        const menu = document.querySelector('.text-polish-context-menu');
+        if (menu && !menu.contains(e.target as Node)) {
+          setShowContextMenu(false);
+        }
+      }
+    };
+
     document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('contextmenu', handleContextMenu);
     return () => {
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [showContextMenu]);
 
@@ -538,7 +554,10 @@ export default function MarkdownEditor({
           <span className="uploading-indicator">📤 上传中...</span>
         )}
       </div>
-      <div className="editor-content" data-color-mode={theme}>
+      <div 
+        className="editor-content" 
+        data-color-mode={theme}
+      >
         <MDEditor
           value={value}
           onChange={(val) => onChange(val || '')}
