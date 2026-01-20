@@ -283,10 +283,28 @@ function parseImageResponse(data: any, providerName?: string): ImageGenerationRe
  */
 export async function callImageGeneration(
   prompt: string,
-  options?: { width?: number; height?: number; n?: number }
+  options?: { width?: number; height?: number; n?: number; providerId?: number; model?: string }
 ): Promise<ImageGenerationResponse> {
-  const { provider, model } = getProvider('image_provider');
-  if (provider.type !== 'image') throw new Error('Provider is not an image generation provider');
+  let provider: Provider;
+  let model: string;
+  
+  // 如果提供了 providerId 和 model，使用指定的提供商和模型
+  if (options?.providerId && options?.model) {
+    provider = ProviderModel.findById(options.providerId);
+    if (!provider || !provider.enabled) {
+      throw new Error('Provider not found or disabled');
+    }
+    if (provider.type !== 'image') {
+      throw new Error('Provider is not an image generation provider');
+    }
+    model = options.model;
+  } else {
+    // 否则使用默认配置的提供商
+    const { provider: defaultProvider, model: defaultModel } = getProvider('image_provider');
+    provider = defaultProvider;
+    model = defaultModel;
+  }
+  
   if (!provider.apiKey) throw new Error('API key not configured');
 
   const isZhipuAI = provider.name && (provider.name.includes('智谱') || provider.name.toLowerCase().includes('zhipu'));

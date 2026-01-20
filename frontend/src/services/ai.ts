@@ -1,6 +1,13 @@
 import api from './api';
 import { storage } from '../utils/storage';
 
+export interface GeneratedImage {
+  url: string; // 图片URL
+  model?: string; // 使用的生图模型，格式为 "providerId:model"
+  modelName?: string; // 模型显示名称，格式为 "提供商名(模型名)"
+  generatedAt?: string; // 生成时间
+}
+
 export interface ImagePlan {
   index: number;
   type?: string;
@@ -11,7 +18,11 @@ export interface ImagePlan {
   description?: string;
   prompt: string;
   aspectRatio?: string; // 图片比例，如 "3:4", "16:9", "1:1" 等
-  imageUrl?: string; // 已生成的图片URL（可选）
+  imageUrl?: string; // 已生成的图片URL（可选，向后兼容）
+  imageUrls?: GeneratedImage[]; // 已生成的多张图片URL列表
+  selectedImageIndex?: number; // 当前选中的图片索引（默认是最新生成的图片）
+  model?: string; // 当前选择的生图模型，格式为 "providerId:model"
+  modelName?: string; // 当前选择的模型显示名称，格式为 "提供商名(模型名)"
 }
 
 export interface AnalyzeArticleResponse {
@@ -150,7 +161,7 @@ export async function analyzeArticleForImages(
  */
 export async function generateImage(
   prompt: string,
-  options?: { width?: number; height?: number; aspectRatio?: string; n?: number }
+  options?: { width?: number; height?: number; aspectRatio?: string; n?: number; model?: string }
 ): Promise<ImageGenerationResponse> {
   const response = await api.post<ImageGenerationResponse>('/ai/image', {
     prompt,

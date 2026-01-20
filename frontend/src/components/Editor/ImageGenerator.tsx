@@ -3,6 +3,8 @@ import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSetting
 import ReactMarkdown from 'react-markdown';
 import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan, getImagePromptTemplate, saveImagePromptTemplate } from '../../services/ai';
 import { uploadService } from '../../services/upload';
+import { settingsService } from '../../services/settings';
+import ImagePreview from '../Article/ImagePreview';
 import './ImageGenerator.css';
 
 interface ImageGeneratorProps {
@@ -19,7 +21,8 @@ interface ImageGeneratorProps {
 interface ImageGenerationTask {
   plan: ImagePlan;
   status: 'pending' | 'generating' | 'completed' | 'error';
-  imageUrl?: string;
+  imageUrls?: Array<{ url: string; model?: string; modelName?: string; generatedAt?: string }>; // 已生成的多张图片
+  selectedImageIndex?: number; // 当前选中的图片索引（默认是最新生成的图片）
   error?: string;
 }
 
@@ -49,6 +52,37 @@ export default function ImageGenerator({
   const processedImagePlanIdRef = useRef<string | null>(null);
   // 用于滚动到底部的ref（指向内容容器）
   const contentRef = useRef<HTMLDivElement>(null);
+  // 图片模型选项列表
+  const [imageModelOptions, setImageModelOptions] = useState<Array<{ value: string; label: string; providerId: number; model: string }>>([]);
+  // 当前预览的图片URL
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  // 加载图片生成提供商和模型列表
+  useEffect(() => {
+    const loadImageProviders = async () => {
+      try {
+        const providers = await settingsService.getProviders();
+        const imageProvidersList = providers.filter(p => p.enabled && p.type === 'image');
+        
+        // 生成模型选项列表
+        const options: Array<{ value: string; label: string; providerId: number; model: string }> = [];
+        imageProvidersList.forEach((provider) => {
+          provider.models.forEach((model) => {
+            options.push({
+              value: `${provider.id}:${model}`,
+              label: `${provider.name}(${model})`,
+              providerId: provider.id,
+              model: model,
+            });
+          });
+        });
+        setImageModelOptions(options);
+      } catch (error) {
+        console.error('加载图片生成提供商失败:', error);
+      }
+    };
+    loadImageProviders();
+  }, []);
 
   // 初始化：如果有初始图片规划，自动加载
   useEffect(() => {
@@ -58,11 +92,37 @@ export default function ImageGenerator({
         // 检查是否需要重新初始化（只在任务数量为0或数量不匹配时）
         if (prevTasks.length === 0 || prevTasks.length !== initialImagePlans.length) {
           setImagePlans(initialImagePlans);
-          return initialImagePlans.map((plan) => ({
-            plan,
-            status: plan.imageUrl ? ('completed' as const) : ('pending' as const),
-            imageUrl: plan.imageUrl,
-          }));
+          return initialImagePlans.map((plan) => {
+            // 兼容旧数据：如果有 imageUrl，转换为 imageUrls 数组
+            let imageUrls: Array<{ url: string; model?: string; modelName?: string; generatedAt?: string }> = [];
+            if (plan.imageUrls && plan.imageUrls.length > 0) {
+              imageUrls = plan.imageUrls.map(img => ({
+                url: typeof img === 'string' ? img : img.url,
+                model: typeof img === 'string' ? undefined : img.model,
+                modelName: typeof img === 'string' ? undefined : img.modelName,
+                generatedAt: typeof img === 'string' ? undefined : img.generatedAt,
+              }));
+            } else if (plan.imageUrl) {
+              // 向后兼容：将单个 imageUrl 转换为数组
+              imageUrls = [{
+                url: plan.imageUrl,
+                model: plan.model,
+                modelName: plan.modelName,
+              }];
+            }
+            
+            // 获取选中的图片索引，如果没有指定则使用最后一个（最新生成的）
+            const selectedIndex = plan.selectedImageIndex !== undefined 
+              ? plan.selectedImageIndex 
+              : (imageUrls.length > 0 ? imageUrls.length - 1 : undefined);
+            
+            return {
+              plan,
+              status: imageUrls.length > 0 ? ('completed' as const) : ('pending' as const),
+              imageUrls,
+              selectedImageIndex: selectedIndex,
+            };
+          });
         } else {
           // 数量匹配，只更新 imagePlans，保留 generationTasks 的状态
           setImagePlans(initialImagePlans);
@@ -100,13 +160,14 @@ export default function ImageGenerator({
         };
 
         const updatedPlans = [...prevPlans, newPlan];
-        
+
         // 添加对应的生成任务
         setGenerationTasks((prevTasks) => [
           ...prevTasks,
           {
             plan: newPlan,
             status: 'pending' as const,
+            imageUrls: [],
           },
         ]);
 
@@ -233,9 +294,33 @@ export default function ImageGenerator({
                   return existingTask;
                 } else {
                   // 新任务，初始状态为 pending
+                  // 兼容旧数据
+                  let imageUrls: Array<{ url: string; model?: string; modelName?: string; generatedAt?: string }> = [];
+                  if (plan.imageUrls && plan.imageUrls.length > 0) {
+                    imageUrls = plan.imageUrls.map(img => ({
+                      url: typeof img === 'string' ? img : img.url,
+                      model: typeof img === 'string' ? undefined : img.model,
+                      modelName: typeof img === 'string' ? undefined : img.modelName,
+                      generatedAt: typeof img === 'string' ? undefined : img.generatedAt,
+                    }));
+                  } else if (plan.imageUrl) {
+                    imageUrls = [{
+                      url: plan.imageUrl,
+                      model: plan.model,
+                      modelName: plan.modelName,
+                    }];
+                  }
+                  
+                  // 获取选中的图片索引，如果没有指定则使用最后一个（最新生成的）
+                  const selectedIndex = plan.selectedImageIndex !== undefined 
+                    ? plan.selectedImageIndex 
+                    : (imageUrls.length > 0 ? imageUrls.length - 1 : undefined);
+                  
                   return {
                     plan,
-                    status: 'pending' as const,
+                    status: imageUrls.length > 0 ? ('completed' as const) : ('pending' as const),
+                    imageUrls,
+                    selectedImageIndex: selectedIndex,
                   };
                 }
               });
@@ -249,10 +334,36 @@ export default function ImageGenerator({
           setImagePlans(finalItems);
           // 初始化生成任务
           setGenerationTasks(
-            finalItems.map((plan) => ({
-              plan,
-              status: 'pending' as const,
-            }))
+            finalItems.map((plan) => {
+              // 兼容旧数据
+              let imageUrls: Array<{ url: string; model?: string; modelName?: string; generatedAt?: string }> = [];
+              if (plan.imageUrls && plan.imageUrls.length > 0) {
+                imageUrls = plan.imageUrls.map(img => ({
+                  url: typeof img === 'string' ? img : img.url,
+                  model: typeof img === 'string' ? undefined : img.model,
+                  modelName: typeof img === 'string' ? undefined : img.modelName,
+                  generatedAt: typeof img === 'string' ? undefined : img.generatedAt,
+                }));
+              } else if (plan.imageUrl) {
+                imageUrls = [{
+                  url: plan.imageUrl,
+                  model: plan.model,
+                  modelName: plan.modelName,
+                }];
+              }
+              
+              // 获取选中的图片索引，如果没有指定则使用最后一个（最新生成的）
+              const selectedIndex = plan.selectedImageIndex !== undefined 
+                ? plan.selectedImageIndex 
+                : (imageUrls.length > 0 ? imageUrls.length - 1 : undefined);
+              
+              return {
+                plan,
+                status: imageUrls.length > 0 ? ('completed' as const) : ('pending' as const),
+                imageUrls,
+                selectedImageIndex: selectedIndex,
+              };
+            })
           );
           // 保存图片规划到文章
           if (onSaveImagePlans) {
@@ -296,8 +407,8 @@ export default function ImageGenerator({
       newTasks[index] = {
         ...prev[index],
         status: 'generating',
-        imageUrl: undefined, // 清除旧的图片URL，重新生成
         error: undefined, // 清除旧的错误信息
+        // 保留已有的图片，不删除
       };
       console.log(`[DEBUG] handleGenerateImage(${index}): 状态已设置为 generating`);
       return newTasks;
@@ -306,9 +417,19 @@ export default function ImageGenerator({
     try {
       // 使用 plan 中的 aspectRatio，如果没有则默认使用 16:9
       const aspectRatio = task.plan.aspectRatio || '16:9';
+      // 使用 plan 中的 model，如果存在则传递
+      const model = task.plan.model;
       const response = await generateImage(task.plan.prompt, {
         aspectRatio,
+        model,
       });
+      
+      // 获取模型显示名称
+      let modelName: string | undefined = undefined;
+      if (model) {
+        const option = imageModelOptions.find(opt => opt.value === model);
+        modelName = option ? option.label : model;
+      }
 
       // 处理图片URL：如果是base64或data URL，需要先上传
       let imageUrl = response.imageUrl;
@@ -371,18 +492,36 @@ export default function ImageGenerator({
         throw new Error('未获取到有效的图片 URL');
       }
 
+      // 将新生成的图片追加到数组中
+      const newImage = {
+        url: imageUrl,
+        model: model,
+        modelName: modelName,
+        generatedAt: new Date().toISOString(),
+      };
+
       setGenerationTasks((prev) => {
         const newTasks = [...prev];
+        const existingImages = prev[index].imageUrls || [];
+        const newImageUrls = [...existingImages, newImage]; // 追加新图片，保留所有旧图片
         newTasks[index] = {
           ...prev[index],
           status: 'completed',
-          imageUrl,
+          imageUrls: newImageUrls,
+          selectedImageIndex: newImageUrls.length - 1, // 默认选中最新生成的图片
         };
-        // 保存更新后的图片规划（包含已生成的图片URL）
+        // 保存更新后的图片规划（包含所有已生成的图片URL和模型信息）
         if (onSaveImagePlans) {
           const updatedPlans = newTasks.map((task) => ({
             ...task.plan,
-            imageUrl: task.imageUrl, // 添加已生成的图片URL
+            imageUrls: task.imageUrls || [], // 保存所有图片URL
+            selectedImageIndex: task.selectedImageIndex, // 保存选中的图片索引
+            model: task.plan.model, // 保存当前选择的模型信息
+            modelName: task.plan.modelName, // 保存当前选择的模型显示名称
+            // 向后兼容：保留最后一个图片URL
+            imageUrl: task.imageUrls && task.imageUrls.length > 0 
+              ? task.imageUrls[task.imageUrls.length - 1].url 
+              : undefined,
           }));
           onSaveImagePlans(updatedPlans);
         }
@@ -419,7 +558,14 @@ export default function ImageGenerator({
         if (onSaveImagePlans) {
           const updatedPlans = reorderedTasks.map((task) => ({
             ...task.plan,
-            imageUrl: task.imageUrl,
+            imageUrls: task.imageUrls || [],
+            selectedImageIndex: task.selectedImageIndex,
+            model: task.plan.model,
+            modelName: task.plan.modelName,
+            // 向后兼容
+            imageUrl: task.imageUrls && task.imageUrls.length > 0 
+              ? task.imageUrls[task.imageUrls.length - 1].url 
+              : undefined,
           }));
           onSaveImagePlans(updatedPlans);
         }
@@ -458,7 +604,14 @@ export default function ImageGenerator({
         setGenerationTasks((currentTasks) => {
           const updatedPlans = currentTasks.map((task) => ({
             ...task.plan,
-            imageUrl: task.imageUrl,
+            imageUrls: task.imageUrls || [],
+            selectedImageIndex: task.selectedImageIndex,
+            model: task.plan.model,
+            modelName: task.plan.modelName,
+            // 向后兼容
+            imageUrl: task.imageUrls && task.imageUrls.length > 0 
+              ? task.imageUrls[task.imageUrls.length - 1].url 
+              : undefined,
           }));
           onSaveImagePlans(updatedPlans);
           return currentTasks;
@@ -476,25 +629,36 @@ export default function ImageGenerator({
     return content.includes(imageUrl);
   };
 
-  // 插入所有已生成的图片（智能插入）
+  // 插入所有已生成的图片（智能插入）- 只插入选中的图片
   const handleInsertAll = async () => {
-    const completedTasks = generationTasks.filter(
-      (task) => task.status === 'completed' && task.imageUrl
-    );
+    // 收集所有已选中且未插入的图片
+    const allImages: Array<{ taskIndex: number; imageIndex: number; url: string; coreMessage: string; position: string }> = [];
+    
+    generationTasks.forEach((task, taskIndex) => {
+      if (task.imageUrls && task.imageUrls.length > 0) {
+        // 获取选中的图片索引，如果没有指定则使用最后一个（最新生成的）
+        const selectedIndex = task.selectedImageIndex !== undefined 
+          ? task.selectedImageIndex 
+          : task.imageUrls.length - 1;
+        
+        // 只处理选中的图片
+        if (selectedIndex >= 0 && selectedIndex < task.imageUrls.length) {
+          const selectedImage = task.imageUrls[selectedIndex];
+          if (!isImageAlreadyInserted(selectedImage.url)) {
+            allImages.push({
+              taskIndex,
+              imageIndex: selectedIndex,
+              url: selectedImage.url,
+              coreMessage: task.plan.coreMessage,
+              position: task.plan.position || '结尾',
+            });
+          }
+        }
+      }
+    });
 
-    if (completedTasks.length === 0) {
-      alert('没有可插入的图片，请先生成图片');
-      return;
-    }
-
-    // 过滤掉已经插入的图片
-    const tasksToInsert = completedTasks.filter(
-      (task) => !isImageAlreadyInserted(task.imageUrl!)
-    );
-
-    if (tasksToInsert.length === 0) {
-      alert('所有图片已经插入到文章中了');
-      onClose();
+    if (allImages.length === 0) {
+      alert('没有可插入的图片，请先生成图片或所有图片已经插入到文章中了');
       return;
     }
 
@@ -502,7 +666,7 @@ export default function ImageGenerator({
 
     try {
       // 一次性调用大模型判断所有图片的插入位置
-      const imageCoreMessages = tasksToInsert.map((task) => task.plan.coreMessage);
+      const imageCoreMessages = allImages.map((img) => img.coreMessage);
       console.log('正在批量判断图片位置，共', imageCoreMessages.length, '张图片');
       
       let positionsResults: Array<{ position: string; reason: string }> = [];
@@ -519,16 +683,16 @@ export default function ImageGenerator({
           status: error.response?.status,
         });
         // 如果批量判断失败，为每张图片使用备用位置
-        positionsResults = tasksToInsert.map((task) => ({
-          position: task.plan.position || '结尾',
+        positionsResults = allImages.map((img) => ({
+          position: img.position,
           reason: '批量判断失败，使用原位置',
         }));
       }
 
       // 构建图片插入数据
-      const imagesToInsert = tasksToInsert.map((task, index) => ({
-        markdown: `![${task.plan.coreMessage}](${task.imageUrl})`,
-        position: positionsResults[index]?.position || task.plan.position || '结尾',
+      const imagesToInsert = allImages.map((img, index) => ({
+        markdown: `![${img.coreMessage}](${img.url})`,
+        position: positionsResults[index]?.position || img.position,
       }));
 
       // 检查是否有有效的图片需要插入
@@ -557,8 +721,15 @@ export default function ImageGenerator({
   };
 
   return (
-    <div className="image-generator-overlay">
-      <div className={`image-generator-modal ${showPromptEditor ? 'with-editor' : ''}`}>
+    <>
+      {previewImageUrl && (
+        <ImagePreview 
+          imageUrl={previewImageUrl} 
+          onClose={() => setPreviewImageUrl(null)} 
+        />
+      )}
+      <div className="image-generator-overlay">
+        <div className={`image-generator-modal ${showPromptEditor ? 'with-editor' : ''}`}>
         <div className="image-generator-content-wrapper">
           <div className="image-generator-header">
             <h2>AI图片生成助手</h2>
@@ -651,7 +822,7 @@ export default function ImageGenerator({
                   type="button"
                   className="btn btn-success"
                   onClick={handleInsertAll}
-                  disabled={!generationTasks.some((t) => t.status === 'completed') || inserting}
+                  disabled={!generationTasks.some((t) => t.imageUrls && t.imageUrls.length > 0) || inserting}
                 >
                   {inserting ? (
                     <>
@@ -688,14 +859,59 @@ export default function ImageGenerator({
                           <span>删除</span>
                         </button>
                         {task.status === 'pending' && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleGenerateImage(index)}
-                          >
-                            <FiImage />
-                            <span>生成</span>
-                          </button>
+                          <div className="generate-control-group">
+                            <select
+                              value={task.plan.model || ''}
+                              onChange={(e) => {
+                                const selectedModel = e.target.value;
+                                const option = imageModelOptions.find(opt => opt.value === selectedModel);
+                                const modelName = option ? option.label : '';
+                                
+                                setGenerationTasks((prev) => {
+                                  const newTasks = [...prev];
+                                  newTasks[index] = {
+                                    ...newTasks[index],
+                                    plan: {
+                                      ...newTasks[index].plan,
+                                      model: selectedModel || undefined,
+                                      modelName: modelName || undefined,
+                                    },
+                                  };
+                                  // 保存更新后的图片规划
+                                  if (onSaveImagePlans) {
+                                    const updatedPlans = newTasks.map((t) => ({
+                                      ...t.plan,
+                                      imageUrls: t.imageUrls || [],
+                                      model: t.plan.model,
+                                      modelName: t.plan.modelName,
+                                      imageUrl: t.imageUrls && t.imageUrls.length > 0 
+                                        ? t.imageUrls[t.imageUrls.length - 1].url 
+                                        : undefined,
+                                    }));
+                                    onSaveImagePlans(updatedPlans);
+                                  }
+                                  return newTasks;
+                                });
+                              }}
+                              disabled={false}
+                              className="model-select-inline"
+                            >
+                              <option value="">使用默认模型</option>
+                              {imageModelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleGenerateImage(index)}
+                            >
+                              <FiImage />
+                              <span>生成</span>
+                            </button>
+                          </div>
                         )}
                         {task.status === 'generating' && (
                           <span className="status-generating">
@@ -703,24 +919,107 @@ export default function ImageGenerator({
                             <span>生成中...</span>
                           </span>
                         )}
-                        {task.status === 'completed' && (
-                          <span className="status-completed">
-                            <FiCheck />
-                            <span>已完成</span>
+                        {(task.status === 'completed' || (task.imageUrls && task.imageUrls.length > 0)) && (
+                          <div className="generate-control-group">
+                            <select
+                              value={task.plan.model || ''}
+                              onChange={(e) => {
+                                const selectedModel = e.target.value;
+                                const option = imageModelOptions.find(opt => opt.value === selectedModel);
+                                const modelName = option ? option.label : '';
+                                
+                                setGenerationTasks((prev) => {
+                                  const newTasks = [...prev];
+                                  newTasks[index] = {
+                                    ...newTasks[index],
+                                    plan: {
+                                      ...newTasks[index].plan,
+                                      model: selectedModel || undefined,
+                                      modelName: modelName || undefined,
+                                    },
+                                  };
+                                  // 保存更新后的图片规划
+                                  if (onSaveImagePlans) {
+                                    const updatedPlans = newTasks.map((t) => ({
+                                      ...t.plan,
+                                      imageUrls: t.imageUrls || [],
+                                      model: t.plan.model,
+                                      modelName: t.plan.modelName,
+                                      imageUrl: t.imageUrls && t.imageUrls.length > 0 
+                                        ? t.imageUrls[t.imageUrls.length - 1].url 
+                                        : undefined,
+                                    }));
+                                    onSaveImagePlans(updatedPlans);
+                                  }
+                                  return newTasks;
+                                });
+                              }}
+                              disabled={generationTasks[index]?.status === 'generating'}
+                              className="model-select-inline"
+                            >
+                              <option value="">使用默认模型</option>
+                              {imageModelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
                             <button
                               type="button"
                               className="btn btn-sm btn-primary"
                               onClick={() => handleGenerateImage(index)}
-                              style={{ marginLeft: '8px' }}
                             >
                               <FiRefreshCw />
-                              <span>重新生成</span>
+                              <span>继续生成</span>
                             </button>
-                          </span>
+                          </div>
                         )}
                         {task.status === 'error' && (
-                          <span className="status-error">
-                            <span>❌ 失败</span>
+                          <div className="generate-control-group">
+                            <span className="status-error-text">❌ 失败</span>
+                            <select
+                              value={task.plan.model || ''}
+                              onChange={(e) => {
+                                const selectedModel = e.target.value;
+                                const option = imageModelOptions.find(opt => opt.value === selectedModel);
+                                const modelName = option ? option.label : '';
+                                
+                                setGenerationTasks((prev) => {
+                                  const newTasks = [...prev];
+                                  newTasks[index] = {
+                                    ...newTasks[index],
+                                    plan: {
+                                      ...newTasks[index].plan,
+                                      model: selectedModel || undefined,
+                                      modelName: modelName || undefined,
+                                    },
+                                  };
+                                  // 保存更新后的图片规划
+                                  if (onSaveImagePlans) {
+                                    const updatedPlans = newTasks.map((t) => ({
+                                      ...t.plan,
+                                      imageUrls: t.imageUrls || [],
+                                      model: t.plan.model,
+                                      modelName: t.plan.modelName,
+                                      imageUrl: t.imageUrls && t.imageUrls.length > 0 
+                                        ? t.imageUrls[t.imageUrls.length - 1].url 
+                                        : undefined,
+                                    }));
+                                    onSaveImagePlans(updatedPlans);
+                                  }
+                                  return newTasks;
+                                });
+                              }}
+                              disabled={false}
+                              className="model-select-inline"
+                            >
+                              <option value="">使用默认模型</option>
+                              {imageModelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
                             <button
                               type="button"
                               className="btn btn-sm btn-primary"
@@ -728,7 +1027,7 @@ export default function ImageGenerator({
                             >
                               重试
                             </button>
-                          </span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -786,10 +1085,14 @@ export default function ImageGenerator({
                                     };
                                     // 保存更新后的图片规划
                                     if (onSaveImagePlans) {
-                                      const updatedPlans = newTasks.map((t) => ({
-                                        ...t.plan,
-                                        imageUrl: t.imageUrl,
-                                      }));
+                                    const updatedPlans = newTasks.map((t) => ({
+                                      ...t.plan,
+                                      imageUrls: t.imageUrls || [],
+                                      selectedImageIndex: t.selectedImageIndex,
+                                      imageUrl: t.imageUrls && t.imageUrls.length > 0 
+                                        ? t.imageUrls[t.imageUrls.length - 1].url 
+                                        : undefined,
+                                    }));
                                       onSaveImagePlans(updatedPlans);
                                     }
                                     return newTasks;
@@ -807,9 +1110,121 @@ export default function ImageGenerator({
                         )}
                       </div>
 
-                      {task.status === 'completed' && task.imageUrl && (
-                        <div className="image-plan-preview">
-                          <img src={task.imageUrl} alt={task.plan.coreMessage} />
+                      {/* 显示所有已生成的图片 */}
+                      {task.imageUrls && task.imageUrls.length > 0 && (
+                        <div className="image-plan-preview-list">
+                          {task.imageUrls.map((img, imgIndex) => {
+                            // 获取选中的图片索引，如果没有指定则使用最后一个（最新生成的）
+                            const selectedIndex = task.selectedImageIndex !== undefined 
+                              ? task.selectedImageIndex 
+                              : task.imageUrls!.length - 1;
+                            const isSelected = imgIndex === selectedIndex;
+                            
+                            return (
+                              <div key={imgIndex} className="image-plan-preview-item">
+                                <div 
+                                  className={`image-plan-preview ${isSelected ? 'selected' : ''}`}
+                                  onClick={() => {
+                                    // 点击图片切换选中状态
+                                    setGenerationTasks((prev) => {
+                                      const newTasks = [...prev];
+                                      newTasks[index] = {
+                                        ...prev[index],
+                                        selectedImageIndex: imgIndex,
+                                      };
+                                      // 保存更新后的图片规划
+                                      if (onSaveImagePlans) {
+                                        const updatedPlans = newTasks.map((t) => ({
+                                          ...t.plan,
+                                          imageUrls: t.imageUrls || [],
+                                          selectedImageIndex: t.selectedImageIndex,
+                                          model: t.plan.model,
+                                          modelName: t.plan.modelName,
+                                          imageUrl: t.imageUrls && t.imageUrls.length > 0 
+                                            ? t.imageUrls[t.imageUrls.length - 1].url 
+                                            : undefined,
+                                        }));
+                                        onSaveImagePlans(updatedPlans);
+                                      }
+                                      return newTasks;
+                                    });
+                                  }}
+                                >
+                                  <img 
+                                    src={img.url} 
+                                    alt={`${task.plan.coreMessage} - 第${imgIndex + 1}张`}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // 阻止触发父元素的点击事件（切换选中状态）
+                                      setPreviewImageUrl(img.url);
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  {/* 选中标识 */}
+                                  {isSelected && (
+                                    <div className="image-selected-badge">
+                                      <FiCheck />
+                                    </div>
+                                  )}
+                                  {img.modelName && (
+                                    <div className="image-model-badge">
+                                      {img.modelName}
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="image-delete-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // 阻止触发图片点击事件和切换选中状态
+                                      if (window.confirm('确定要删除这张图片吗？')) {
+                                        setGenerationTasks((prev) => {
+                                          const newTasks = [...prev];
+                                          const updatedImages = [...(newTasks[index].imageUrls || [])];
+                                          updatedImages.splice(imgIndex, 1);
+                                          
+                                          // 更新选中索引：如果删除的是选中的图片，选中最后一个；如果删除的不是选中的，调整索引
+                                          let newSelectedIndex = newTasks[index].selectedImageIndex;
+                                          if (newSelectedIndex === undefined) {
+                                            newSelectedIndex = updatedImages.length - 1;
+                                          } else if (imgIndex === newSelectedIndex) {
+                                            // 删除的是选中的图片，选中最后一个
+                                            newSelectedIndex = updatedImages.length > 0 ? updatedImages.length - 1 : undefined;
+                                          } else if (imgIndex < newSelectedIndex) {
+                                            // 删除的图片在选中图片之前，需要减1
+                                            newSelectedIndex = newSelectedIndex - 1;
+                                          }
+                                          
+                                          newTasks[index] = {
+                                            ...newTasks[index],
+                                            imageUrls: updatedImages,
+                                            selectedImageIndex: newSelectedIndex,
+                                            status: updatedImages.length > 0 ? 'completed' : 'pending',
+                                          };
+                                          // 保存更新后的图片规划
+                                          if (onSaveImagePlans) {
+                                            const updatedPlans = newTasks.map((t) => ({
+                                              ...t.plan,
+                                              imageUrls: t.imageUrls || [],
+                                              selectedImageIndex: t.selectedImageIndex,
+                                              model: t.plan.model,
+                                              modelName: t.plan.modelName,
+                                              imageUrl: t.imageUrls && t.imageUrls.length > 0 
+                                                ? t.imageUrls[t.imageUrls.length - 1].url 
+                                                : undefined,
+                                            }));
+                                            onSaveImagePlans(updatedPlans);
+                                          }
+                                          return newTasks;
+                                        });
+                                      }
+                                    }}
+                                    title="删除这张图片"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -916,5 +1331,6 @@ export default function ImageGenerator({
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -178,21 +178,36 @@ router.post('/embedding', authenticateToken, async (req, res) => {
 // 调用文生图模型生成图片（支持智谱AI和百炼接口）
 router.post('/image', authenticateToken, async (req, res) => {
   try {
-    const { prompt, width, height, aspectRatio, n } = req.body;
+    const { prompt, width, height, aspectRatio, n, model } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    // 获取提供商信息以确定尺寸转换规则
-    const settingStr = SettingModel.get('image_provider');
-    if (!settingStr) {
-      return res.status(400).json({ error: 'Image provider not configured' });
-    }
-    const setting = JSON.parse(settingStr);
-    const provider = ProviderModel.findById(setting.providerId);
-    if (!provider) {
-      return res.status(400).json({ error: 'Image provider not found' });
+    // 如果提供了 model 参数（格式为 "providerId:model"），使用指定的模型
+    let provider: any = null;
+    let selectedModel: string | undefined = undefined;
+    
+    if (model) {
+      const [providerIdStr, modelName] = model.split(':');
+      const providerId = parseInt(providerIdStr);
+      provider = ProviderModel.findById(providerId);
+      if (!provider || !provider.enabled || provider.type !== 'image') {
+        return res.status(400).json({ error: 'Invalid image provider specified' });
+      }
+      selectedModel = modelName;
+    } else {
+      // 使用默认配置的提供商
+      const settingStr = SettingModel.get('image_provider');
+      if (!settingStr) {
+        return res.status(400).json({ error: 'Image provider not configured' });
+      }
+      const setting = JSON.parse(settingStr);
+      provider = ProviderModel.findById(setting.providerId);
+      if (!provider) {
+        return res.status(400).json({ error: 'Image provider not found' });
+      }
+      selectedModel = setting.model;
     }
     
     // 如果提供了 aspectRatio，转换为 width 和 height
@@ -205,7 +220,13 @@ router.post('/image', authenticateToken, async (req, res) => {
       finalHeight = dimensions.height;
     }
 
-    const response = await callImageGeneration(prompt, { width: finalWidth, height: finalHeight, n });
+    const response = await callImageGeneration(prompt, { 
+      width: finalWidth, 
+      height: finalHeight, 
+      n,
+      providerId: provider.id,
+      model: selectedModel
+    });
     res.json(response);
   } catch (error: any) {
     console.error('Image generation call error:', error);
