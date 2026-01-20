@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { ArticleModel } from '../models/Article';
-import cheerio from 'cheerio';
+import { load as loadCheerio } from 'cheerio';
 import TurndownService from 'turndown';
 import { createApiError, handleError } from '../utils/errorHandler';
 
@@ -190,7 +190,7 @@ export async function fetchArticleFromUrl(req: AuthRequest, res: Response) {
     }
 
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = loadCheerio(html);
 
     // 提取标题 - 尝试多种选择器
     let title = '';
@@ -254,7 +254,7 @@ export async function fetchArticleFromUrl(req: AuthRequest, res: Response) {
     }
 
     // 创建一个新的cheerio实例来处理内容
-    const $content = cheerio.load(content);
+    const $content = loadCheerio(content);
     
     // 处理图片 - 将相对路径转换为绝对路径
     const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
