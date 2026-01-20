@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiRefreshCw, FiSave, FiInfo, FiHelpCircle } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { settingsService, Provider, Settings } from '../../services/settings';
+import { getErrorMessage } from '../../utils/errorHandler';
 import Tooltip from './Tooltip';
 import './Settings.css';
 
@@ -76,8 +77,8 @@ export default function ImageProviderSelection() {
       setSuccess('配置保存成功！');
       // 3秒后自动清除成功消息
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || '保存失败');
+    } catch (err) {
+      setError(getErrorMessage(err, '保存失败'));
       setSuccess('');
     } finally {
       setSaving(false);

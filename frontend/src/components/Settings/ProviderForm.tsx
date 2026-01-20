@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiEye, FiEyeOff, FiHelpCircle } from 'react-icons/fi';
 import { settingsService, Provider, CreateProviderData } from '../../services/settings';
+import { getErrorMessage } from '../../utils/errorHandler';
 import Tooltip from './Tooltip';
 import './Settings.css';
 
@@ -144,8 +145,8 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
       }
 
       onSubmit();
-    } catch (err: any) {
-      setError(err.response?.data?.error || '保存失败');
+    } catch (err) {
+      setError(getErrorMessage(err, '保存失败'));
     } finally {
       setLoading(false);
     }

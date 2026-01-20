@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { storage } from '../utils/storage';
 import { authService } from '../services/auth';
 
@@ -46,8 +46,9 @@ export function useAuth() {
     setUser(null);
   };
 
-  const token = storage.getToken();
-  const isAuthenticated = !!(token && user);
+  // 使用 useMemo 优化 token 和 isAuthenticated 的计算
+  const token = useMemo(() => storage.getToken(), [user]);
+  const isAuthenticated = useMemo(() => !!(token && user), [token, user]);
 
   return {
     user,

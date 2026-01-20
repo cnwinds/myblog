@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { uploadService } from '../../services/upload';
+import { getErrorMessage } from '../../utils/errorHandler';
 import './ImageUpload.css';
 
 interface ImageUploadProps {
@@ -30,8 +31,8 @@ export default function ImageUpload({ onInsert, onClose }: ImageUploadProps) {
       const markdown = `![${file.name}](${url})`;
       onInsert(markdown);
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.error || '上传失败，请重试');
+    } catch (err) {
+      setError(getErrorMessage(err, '上传失败，请重试'));
     } finally {
       setUploading(false);
     }

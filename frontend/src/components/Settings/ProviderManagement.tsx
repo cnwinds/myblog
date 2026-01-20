@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiTrash2, FiInfo } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { settingsService, Provider } from '../../services/settings';
+import { getErrorMessage } from '../../utils/errorHandler';
 import ProviderForm from './ProviderForm';
 import './Settings.css';
 
@@ -53,8 +54,8 @@ export default function ProviderManagement() {
       await loadProviders();
       // 触发事件，通知其他组件刷新
       window.dispatchEvent(new CustomEvent('providerUpdated'));
-    } catch (error: any) {
-      alert(error.response?.data?.error || '删除失败');
+    } catch (error) {
+      alert(getErrorMessage(error, '删除失败'));
     }
   };
 
@@ -66,8 +67,8 @@ export default function ProviderManagement() {
       await loadProviders();
       // 触发事件，通知其他组件刷新
       window.dispatchEvent(new CustomEvent('providerUpdated'));
-    } catch (error: any) {
-      alert(error.response?.data?.error || '更新失败');
+    } catch (error) {
+      alert(getErrorMessage(error, '更新失败'));
     }
   };
 

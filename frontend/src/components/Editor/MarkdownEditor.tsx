@@ -9,6 +9,7 @@ import { uploadService } from '../../services/upload';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ImagePlan, generateImagePromptFromText, PROMPTS } from '../../services/ai';
+import { getErrorMessage } from '../../utils/errorHandler';
 import './MarkdownEditor.css';
 
 interface MarkdownEditorProps {
@@ -353,9 +354,9 @@ export default function MarkdownEditor({
                 textarea.focus();
               }
             }, 0);
-          } catch (error: any) {
+          } catch (error) {
             console.error('图片上传失败:', error);
-            alert(error.response?.data?.error || '图片上传失败，请重试');
+            alert(getErrorMessage(error, '图片上传失败，请重试'));
           } finally {
             setUploading(false);
           }
@@ -523,9 +524,9 @@ export default function MarkdownEditor({
     try {
       const imagePlan = await generateImagePromptFromText(selectedText);
       setNewImagePlan(imagePlan);
-    } catch (error: any) {
+    } catch (error) {
       console.error('生成图片提示词失败:', error);
-      alert(error.response?.data?.error || error.message || '生成图片提示词失败，请重试');
+      alert(getErrorMessage(error, '生成图片提示词失败，请重试'));
       // 如果生成失败，关闭窗口
       setShowImageGenerator(false);
     } finally {

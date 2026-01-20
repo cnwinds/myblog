@@ -78,11 +78,13 @@ export const settingsService = {
   },
 };
 
+import { ImagePlan } from './ai';
+
 // 草稿存储接口
 export interface ArticleDraft {
   title: string;
   content: string;
-  imagePlans: any[] | null;
+  imagePlans: ImagePlan[] | null;
   savedAt: string;
 }
 
@@ -91,7 +93,7 @@ export const draftStorage = {
   DRAFT_KEY: 'article_draft',
 
   // 保存草稿
-  saveDraft: (title: string, content: string, imagePlans: any[] | null = null) => {
+  saveDraft: (title: string, content: string, imagePlans: ImagePlan[] | null = null) => {
     try {
       const draft: ArticleDraft = {
         title,

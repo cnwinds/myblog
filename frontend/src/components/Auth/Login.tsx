@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { getErrorMessage } from '../../utils/errorHandler';
 import './Login.css';
 
 export default function Login() {
@@ -19,8 +20,8 @@ export default function Login() {
     try {
       await login(username, password);
       navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.error || '登录失败，请重试');
+    } catch (err) {
+      setError(getErrorMessage(err, '登录失败，请重试'));
     } finally {
       setLoading(false);
     }

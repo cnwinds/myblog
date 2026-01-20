@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { articleService } from '../../services/article';
+import { getErrorMessage } from '../../utils/errorHandler';
 import './ArticleFetcher.css';
 
 interface ArticleFetcherProps {
@@ -33,8 +34,8 @@ export default function ArticleFetcher({ onFetch, onClose }: ArticleFetcherProps
       const result = await articleService.fetchArticleFromUrl(url);
       onFetch(result.title, result.content);
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || '获取文章内容失败，请重试');
+    } catch (err) {
+      setError(getErrorMessage(err, '获取文章内容失败，请重试'));
     } finally {
       setFetching(false);
     }

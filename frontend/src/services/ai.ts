@@ -137,8 +137,9 @@ export async function analyzeArticleForImagesStream(
     } finally {
       reader.releaseLock();
     }
-  } catch (error: any) {
-    onError(error.message || '分析文章失败');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '分析文章失败';
+    onError(errorMessage);
   }
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FiLock, FiSave, FiEye, FiEyeOff } from 'react-icons/fi';
 import { authService } from '../../services/auth';
+import { getErrorMessage } from '../../utils/errorHandler';
 import './Settings.css';
 
 export default function ChangePassword() {
@@ -52,8 +53,8 @@ export default function ChangePassword() {
       setConfirmPassword('');
       // 3秒后清除成功消息
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || '密码修改失败，请重试');
+    } catch (err) {
+      setError(getErrorMessage(err, '密码修改失败，请重试'));
     } finally {
       setLoading(false);
     }

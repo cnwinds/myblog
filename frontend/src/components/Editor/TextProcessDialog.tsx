@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { processText } from '../../services/ai';
+import { getErrorMessage } from '../../utils/errorHandler';
 import './TextPolishDialog.css';
 
 interface TextProcessDialogProps {
@@ -59,8 +60,8 @@ export default function TextProcessDialog({
       const result = await processText(selectedText, prompt, fullArticleContent);
       setProcessedText(result);
       setEditableText(result);
-    } catch (err: any) {
-      setError(err.message || `${config.actionLabel}失败，请重试`);
+    } catch (err) {
+      setError(getErrorMessage(err, `${config.actionLabel}失败，请重试`));
     } finally {
       setLoading(false);
     }

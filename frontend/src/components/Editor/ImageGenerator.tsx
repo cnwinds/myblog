@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSettings, FiSave, FiTrash2 } from 'react-icons/fi';
+import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSettings, FiSave, FiTrash2, FiCopy } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan, getImagePromptTemplate, saveImagePromptTemplate } from '../../services/ai';
 import { uploadService } from '../../services/upload';
 import { settingsService } from '../../services/settings';
+import { getErrorMessage, getErrorDetails } from '../../utils/errorHandler';
 import ImagePreview from '../Article/ImagePreview';
 import './ImageGenerator.css';
 
@@ -56,6 +57,7 @@ export default function ImageGenerator({
   const [imageModelOptions, setImageModelOptions] = useState<Array<{ value: string; label: string; providerId: number; model: string }>>([]);
   // 当前预览的图片URL
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [copiedImageIndex, setCopiedImageIndex] = useState<{ taskIndex: number; imgIndex: number } | null>(null);
 
   // 加载图片生成提供商和模型列表
   useEffect(() => {
@@ -247,9 +249,9 @@ export default function ImageGenerator({
     try {
       await saveImagePromptTemplate(promptTemplate);
       alert('提示词模板保存成功！');
-    } catch (error: any) {
+    } catch (error) {
       console.error('保存提示词模板失败:', error);
-      alert(error.response?.data?.error || '保存提示词模板失败');
+      alert(getErrorMessage(error, '保存提示词模板失败'));
     } finally {
       setSavingTemplate(false);
     }
@@ -378,9 +380,10 @@ export default function ImageGenerator({
           setAnalyzing(false);
         }
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error('分析文章失败:', error);
-      alert(error.message || '分析文章失败，请重试');
+      const errorMessage = error instanceof Error ? error.message : '分析文章失败，请重试';
+      alert(errorMessage);
       setAnalyzing(false);
     }
   };
@@ -527,14 +530,14 @@ export default function ImageGenerator({
         }
         return newTasks;
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('生成图片失败:', error);
       setGenerationTasks((prev) => {
         const newTasks = [...prev];
         newTasks[index] = {
           ...prev[index],
           status: 'error',
-          error: error.response?.data?.error || '生成图片失败',
+          error: getErrorMessage(error, '生成图片失败'),
         };
         return newTasks;
       });
@@ -629,6 +632,47 @@ export default function ImageGenerator({
     return content.includes(imageUrl);
   };
 
+  // 复制图片的 Markdown 内容到剪贴板
+  const handleCopyImageMarkdown = async (taskIndex: number, imgIndex: number) => {
+    const task = generationTasks[taskIndex];
+    if (!task || !task.imageUrls || imgIndex >= task.imageUrls.length) {
+      return;
+    }
+
+    const image = task.imageUrls[imgIndex];
+    const altText = task.plan.coreMessage || '图片';
+    const markdown = `![${altText}](${image.url})`;
+
+    try {
+      await navigator.clipboard.writeText(markdown);
+      // 显示复制成功的反馈
+      setCopiedImageIndex({ taskIndex, imgIndex });
+      setTimeout(() => {
+        setCopiedImageIndex(null);
+      }, 2000);
+    } catch (error) {
+      console.error('复制失败:', error);
+      // 降级方案：使用传统方法
+      const textArea = document.createElement('textarea');
+      textArea.value = markdown;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopiedImageIndex({ taskIndex, imgIndex });
+        setTimeout(() => {
+          setCopiedImageIndex(null);
+        }, 2000);
+      } catch (err) {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
   // 插入所有已生成的图片（智能插入）- 只插入选中的图片
   const handleInsertAll = async () => {
     // 收集所有已选中且未插入的图片
@@ -675,13 +719,9 @@ export default function ImageGenerator({
         const response = await findImagePositions(content, imageCoreMessages);
         positionsResults = response.positions;
         console.log('批量位置判断结果:', positionsResults);
-      } catch (error: any) {
+      } catch (error) {
         console.error('批量判断图片位置失败:', error);
-        console.error('错误详情:', {
-          message: error.message,
-          response: error.response?.data,
-          status: error.response?.status,
-        });
+        console.error('错误详情:', getErrorDetails(error));
         // 如果批量判断失败，为每张图片使用备用位置
         positionsResults = allImages.map((img) => ({
           position: img.position,
@@ -706,15 +746,10 @@ export default function ImageGenerator({
       // 调用插入函数（这是同步函数，不需要try-catch，但需要确保它不会抛出错误）
       onInsertImages(imagesToInsert);
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error('插入图片失败:', error);
-      console.error('错误详情:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        stack: error.stack,
-      });
-      alert(error.response?.data?.error || error.message || '插入图片失败，请重试');
+      console.error('错误详情:', getErrorDetails(error));
+      alert(getErrorMessage(error, '插入图片失败，请重试'));
     } finally {
       setInserting(false);
     }
@@ -1159,12 +1194,40 @@ export default function ImageGenerator({
                                     }}
                                     style={{ cursor: 'pointer' }}
                                   />
-                                  {/* 选中标识 */}
-                                  {isSelected && (
-                                    <div className="image-selected-badge">
-                                      <FiCheck />
-                                    </div>
-                                  )}
+                                  {/* 选中按钮 - 左上角圆形按钮 */}
+                                  <button
+                                    type="button"
+                                    className={`image-select-btn ${isSelected ? 'selected' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // 阻止触发父元素的点击事件
+                                      // 切换选中状态
+                                      setGenerationTasks((prev) => {
+                                        const newTasks = [...prev];
+                                        newTasks[index] = {
+                                          ...prev[index],
+                                          selectedImageIndex: isSelected ? undefined : imgIndex,
+                                        };
+                                        // 保存更新后的图片规划
+                                        if (onSaveImagePlans) {
+                                          const updatedPlans = newTasks.map((t) => ({
+                                            ...t.plan,
+                                            imageUrls: t.imageUrls || [],
+                                            selectedImageIndex: t.selectedImageIndex,
+                                            model: t.plan.model,
+                                            modelName: t.plan.modelName,
+                                            imageUrl: t.imageUrls && t.imageUrls.length > 0 
+                                              ? t.imageUrls[t.imageUrls.length - 1].url 
+                                              : undefined,
+                                          }));
+                                          onSaveImagePlans(updatedPlans);
+                                        }
+                                        return newTasks;
+                                      });
+                                    }}
+                                    title={isSelected ? '取消选中' : '设为默认选中'}
+                                  >
+                                    {isSelected ? <FiCheck /> : null}
+                                  </button>
                                   {img.modelName && (
                                     <div className="image-model-badge">
                                       {img.modelName}
@@ -1220,6 +1283,21 @@ export default function ImageGenerator({
                                     title="删除这张图片"
                                   >
                                     <FiTrash2 />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`image-copy-btn ${copiedImageIndex?.taskIndex === index && copiedImageIndex?.imgIndex === imgIndex ? 'copied' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // 阻止触发图片点击事件和切换选中状态
+                                      handleCopyImageMarkdown(index, imgIndex);
+                                    }}
+                                    title="复制 Markdown 内容"
+                                  >
+                                    {copiedImageIndex?.taskIndex === index && copiedImageIndex?.imgIndex === imgIndex ? (
+                                      <FiCheck />
+                                    ) : (
+                                      <FiCopy />
+                                    )}
                                   </button>
                                 </div>
                               </div>

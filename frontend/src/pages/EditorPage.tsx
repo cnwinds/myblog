@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { articleService } from '../services/article';
 import { ImagePlan } from '../services/ai';
 import MarkdownEditor from '../components/Editor/MarkdownEditor';
+import { getErrorMessage } from '../utils/errorHandler';
 import './EditorPage.css';
 
 export default function EditorPage() {
@@ -290,13 +291,7 @@ export default function EditorPage() {
 
       alert('草稿已保存');
     } catch (err) {
-      let errorMessage = '保存草稿失败';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else {
-        const errorObj = err as { response?: { data?: { error?: string } } };
-        errorMessage = errorObj?.response?.data?.error || '保存草稿失败';
-      }
+      const errorMessage = getErrorMessage(err, '保存草稿失败');
       alert(errorMessage);
       console.error('Failed to save draft:', err);
     } finally {
@@ -346,13 +341,7 @@ export default function EditorPage() {
     } catch (err) {
       // 发布失败，重置发布标志
       isPublishingRef.current = false;
-      let errorMessage = '发布失败';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else {
-        const errorObj = err as { response?: { data?: { error?: string } } };
-        errorMessage = errorObj?.response?.data?.error || '发布失败';
-      }
+      const errorMessage = getErrorMessage(err, '发布失败');
       alert(errorMessage);
       console.error('Failed to publish article:', err);
     } finally {

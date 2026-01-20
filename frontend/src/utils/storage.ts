@@ -1,30 +1,62 @@
 const TOKEN_KEY = 'blog_token';
 const USER_KEY = 'blog_user';
 
+export interface StoredUser {
+  id: number;
+  username: string;
+}
+
 export const storage = {
   getToken: (): string | null => {
-    return localStorage.getItem(TOKEN_KEY);
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch (error) {
+      console.error('Failed to get token from localStorage:', error);
+      return null;
+    }
   },
 
   setToken: (token: string): void => {
-    localStorage.setItem(TOKEN_KEY, token);
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch (error) {
+      console.error('Failed to set token to localStorage:', error);
+    }
   },
 
   removeToken: (): void => {
-    localStorage.removeItem(TOKEN_KEY);
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+    } catch (error) {
+      console.error('Failed to remove token from localStorage:', error);
+    }
   },
 
-  getUser: (): { id: number; username: string } | null => {
-    const userStr = localStorage.getItem(USER_KEY);
-    return userStr ? JSON.parse(userStr) : null;
+  getUser: (): StoredUser | null => {
+    try {
+      const userStr = localStorage.getItem(USER_KEY);
+      if (!userStr) return null;
+      return JSON.parse(userStr) as StoredUser;
+    } catch (error) {
+      console.error('Failed to get user from localStorage:', error);
+      return null;
+    }
   },
 
-  setUser: (user: { id: number; username: string }): void => {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  setUser: (user: StoredUser): void => {
+    try {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } catch (error) {
+      console.error('Failed to set user to localStorage:', error);
+    }
   },
 
   removeUser: (): void => {
-    localStorage.removeItem(USER_KEY);
+    try {
+      localStorage.removeItem(USER_KEY);
+    } catch (error) {
+      console.error('Failed to remove user from localStorage:', error);
+    }
   },
 
   clear: (): void => {

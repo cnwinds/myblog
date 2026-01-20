@@ -54,15 +54,15 @@ function App() {
               </PrivateRoute>
             }
           />
-                <Route
-                  path="/drafts"
-                  element={
-                    <PrivateRoute>
-                      <DraftsPage />
-                    </PrivateRoute>
-                  }
-                />
-                <Route path="/article/:id" element={<ArticleDetail />} />
+          <Route
+            path="/drafts"
+            element={
+              <PrivateRoute>
+                <DraftsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route path="/article/:id" element={<ArticleDetail />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

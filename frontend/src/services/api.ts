@@ -8,8 +8,13 @@ const api = axios.create({
   },
 });
 
-// 判断是否为公开路由（不需要认证）
-const isPublicRoute = (url: string, method: string = 'get') => {
+/**
+ * 判断是否为公开路由（不需要认证）
+ * @param url 请求URL
+ * @param method HTTP方法，默认为 'get'
+ * @returns 是否为公开路由
+ */
+const isPublicRoute = (url: string, method: string = 'get'): boolean => {
   const methodLower = method.toLowerCase();
   
   // GET 请求到 /articles 或 /articles/:id 都是公开的
@@ -60,6 +65,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // 处理 401 未授权错误
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
       const method = error.config?.method || 'get';
