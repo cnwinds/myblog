@@ -76,6 +76,14 @@ export default function DraftsPage() {
     return firstNonEmptyLine || '暂无预览内容';
   };
 
+  // 获取文章摘要：优先使用设置的摘要，否则从内容中提取
+  const getArticleExcerpt = (article: Article) => {
+    if (article.excerpt && article.excerpt.trim()) {
+      return article.excerpt.trim();
+    }
+    return extractExcerpt(article.content);
+  };
+
   return (
     <div className="drafts-page">
       <div className="drafts-header">
@@ -114,7 +122,7 @@ export default function DraftsPage() {
                 <Link to={`/edit/${article.id}`}>
                   <h2 className="draft-title">{article.title}</h2>
                   <p className="draft-excerpt">
-                    {extractExcerpt(article.content)}
+                    {getArticleExcerpt(article)}
                   </p>
                   <div className="draft-meta">
                     <span className="draft-date">

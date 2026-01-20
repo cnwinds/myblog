@@ -145,7 +145,7 @@ export default function ArticleDetail() {
         <h1>{article.title}</h1>
         <div className="article-meta">
           <span>{formatChinaDateTime(article.createdAt)}</span>
-          {isUpdated && (
+          {isAuthenticated && isUpdated && (
             <span className="updated">
               更新于 {formatChinaDateTime(article.updatedAt)}
             </span>

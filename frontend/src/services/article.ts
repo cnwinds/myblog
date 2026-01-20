@@ -10,6 +10,7 @@ export interface Article {
   category?: string; // 'blog' 或 'lab'
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
+  excerpt?: string; // 文章摘要
   createdAt: string;
   updatedAt: string;
 }
@@ -20,6 +21,7 @@ export interface CreateArticleData {
   imagePlans?: ImagePlan[];
   category?: string;
   published?: boolean; // true = 已发布, false = 草稿
+  excerpt?: string; // 文章摘要
 }
 
 export interface UpdateArticleData {
@@ -29,6 +31,7 @@ export interface UpdateArticleData {
   category?: string;
   published?: boolean; // true = 已发布, false = 草稿
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
+  excerpt?: string; // 文章摘要
 }
 
 export const articleService = {

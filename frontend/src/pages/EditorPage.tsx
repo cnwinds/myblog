@@ -11,6 +11,7 @@ export default function EditorPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [excerpt, setExcerpt] = useState('');
   const [category, setCategory] = useState<'blog' | 'lab'>('blog');
   const [imagePlans, setImagePlans] = useState<ImagePlan[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,11 +20,12 @@ export default function EditorPage() {
   const [autoSaving, setAutoSaving] = useState(false);
 
   // 使用 ref 来跟踪自动保存
-  const lastSavedRef = useRef<{ title: string; content: string; category: string }>({ title: '', content: '', category: '' });
-  const currentValuesRef = useRef<{ title: string; content: string; category: string; imagePlans: ImagePlan[] | null; articleId: number | null }>({
+  const lastSavedRef = useRef<{ title: string; content: string; category: string; excerpt: string }>({ title: '', content: '', category: '', excerpt: '' });
+  const currentValuesRef = useRef<{ title: string; content: string; category: string; excerpt: string; imagePlans: ImagePlan[] | null; articleId: number | null }>({
     title: '',
     content: '',
     category: 'blog',
+    excerpt: '',
     imagePlans: null,
     articleId: null,
   });
@@ -45,10 +47,11 @@ export default function EditorPage() {
       title,
       content,
       category,
+      excerpt,
       imagePlans,
       articleId: currentArticleId,
     };
-  }, [title, content, category, imagePlans, currentArticleId]);
+  }, [title, content, category, excerpt, imagePlans, currentArticleId]);
 
   // 每分钟自动保存草稿到数据库
   useEffect(() => {
@@ -126,6 +129,7 @@ export default function EditorPage() {
       
       setTitle(article.title);
       setContent(article.content);
+      setExcerpt(article.excerpt || '');
       setCategory((article.category as 'blog' | 'lab') || 'blog');
       
       // 更新最后保存的内容
@@ -133,6 +137,7 @@ export default function EditorPage() {
         title: article.title,
         content: article.content,
         category: (article.category as 'blog' | 'lab') || 'blog',
+        excerpt: article.excerpt || '',
       };
       
       if (article.imagePlans) {
@@ -182,6 +187,7 @@ export default function EditorPage() {
         title: values.title.trim() || '未命名文章',
         content: values.content,
         category: values.category,
+        excerpt: values.excerpt || undefined,
         imagePlans: values.imagePlans || undefined,
         published: false, // 自动保存始终为草稿
       };
@@ -257,6 +263,7 @@ export default function EditorPage() {
         title: title.trim() || '未命名文章',
         content,
         category,
+        excerpt: excerpt || undefined,
         imagePlans: imagePlans || undefined,
         published: false, // 保存为草稿
       };
@@ -278,6 +285,7 @@ export default function EditorPage() {
         title,
         content,
         category,
+        excerpt,
       };
 
       alert('草稿已保存');
@@ -312,6 +320,7 @@ export default function EditorPage() {
         title,
         content,
         category,
+        excerpt: excerpt || undefined,
         imagePlans: imagePlans || undefined,
         published: true, // 发布，转为正式文章
       };
@@ -365,25 +374,26 @@ export default function EditorPage() {
       <div className="editor-container">
         <form onSubmit={handlePublish}>
           <div className="editor-header">
-            <div className="editor-title-section">
-              <input
-                type="text"
-                placeholder="文章标题"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="title-input"
-                required
-              />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as 'blog' | 'lab')}
-                className="category-select"
-              >
-                <option value="blog">博客</option>
-                <option value="lab">实验室</option>
-              </select>
-            </div>
-            <div className="editor-actions">
+            <div className="editor-header-top">
+              <div className="editor-title-section">
+                <input
+                  type="text"
+                  placeholder="文章标题"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="title-input"
+                  required
+                />
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as 'blog' | 'lab')}
+                  className="category-select"
+                >
+                  <option value="blog">博客</option>
+                  <option value="lab">实验室</option>
+                </select>
+              </div>
+              <div className="editor-actions">
               <button
                 type="button"
                 onClick={() => navigate('/')}
@@ -407,6 +417,16 @@ export default function EditorPage() {
               >
                 <span>{saving ? '发布中...' : currentArticleId ? '更新并发布' : '发布'}</span>
               </button>
+              </div>
+            </div>
+            <div className="editor-excerpt-section">
+              <textarea
+                placeholder="文章摘要（可选，如果不填写则自动从文章开头提取）"
+                value={excerpt}
+                onChange={(e) => setExcerpt(e.target.value)}
+                className="excerpt-input"
+                rows={2}
+              />
             </div>
           </div>
           <div className="editor-body">

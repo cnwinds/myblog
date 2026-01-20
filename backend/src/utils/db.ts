@@ -75,6 +75,16 @@ export function initDatabase() {
     }
   }
 
+  // 为现有表添加 excerpt 字段（如果不存在），用于文章摘要
+  try {
+    db.exec(`ALTER TABLE articles ADD COLUMN excerpt TEXT`);
+  } catch (error: any) {
+    // 字段已存在，忽略错误
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Failed to add excerpt column:', error.message);
+    }
+  }
+
   // 创建AI提供商表
   db.exec(`
     CREATE TABLE IF NOT EXISTS providers (

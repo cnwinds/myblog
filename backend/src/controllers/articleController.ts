@@ -36,7 +36,7 @@ export function getArticle(req: Request, res: Response) {
 // 登录用户可以创建文章
 export function createArticle(req: AuthRequest, res: Response) {
   try {
-    const { title, content, imagePlans, category, published, sortOrder } = req.body;
+    const { title, content, imagePlans, category, published, sortOrder, excerpt } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
@@ -57,6 +57,7 @@ export function createArticle(req: AuthRequest, res: Response) {
       category: category || 'blog',
       published: publishedValue,
       sortOrder: sortOrder !== undefined ? sortOrder : undefined,
+      excerpt: excerpt || undefined,
     });
 
     res.status(201).json(article);
@@ -70,7 +71,7 @@ export function createArticle(req: AuthRequest, res: Response) {
 export function updateArticle(req: AuthRequest, res: Response) {
   try {
     const id = parseInt(req.params.id);
-    const { title, content, imagePlans, category, published, sortOrder } = req.body;
+    const { title, content, imagePlans, category, published, sortOrder, excerpt } = req.body;
 
     if (!req.userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -89,6 +90,7 @@ export function updateArticle(req: AuthRequest, res: Response) {
       console.log(`[updateArticle] Setting published to ${updateData.published} for article ${id}, received:`, published);
     }
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+    if (excerpt !== undefined) updateData.excerpt = excerpt;
 
     // 更新时允许查询未发布的文章
     const article = ArticleModel.findById(id, true);

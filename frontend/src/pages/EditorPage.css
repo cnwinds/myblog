@@ -19,24 +19,48 @@
   padding: var(--spacing-md) var(--spacing-lg);
   border-bottom: 1px solid var(--color-border);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   gap: var(--spacing-md);
-  flex-wrap: wrap;
   background: var(--color-bg-tertiary);
 }
 
 .editor-title-section {
-  flex: 1;
+  flex: 1 1 0%; /* flex-grow: 1, flex-shrink: 1, flex-basis: 0% - 确保占据剩余空间 */
   display: flex;
   gap: var(--spacing-md);
   align-items: center;
-  min-width: 200px;
+  min-width: 0; /* 允许flex容器缩小，配合flex: 1使用 */
+}
+
+.editor-excerpt-section {
+  width: 100%;
+}
+
+.excerpt-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.excerpt-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.excerpt-input::placeholder {
+  color: var(--color-text-tertiary);
 }
 
 .title-input {
   flex: 1;
-  min-width: 200px;
+  min-width: 0; /* 允许flex子元素缩小，配合flex: 1使用 */
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
@@ -48,6 +72,7 @@
 }
 
 .category-select {
+  flex-shrink: 0; /* 防止分类选择器被压缩 */
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
@@ -70,9 +95,18 @@
   border-color: var(--color-primary);
 }
 
+.editor-header-top {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%; /* 确保占满父容器宽度 */
+  flex-wrap: wrap; /* 小屏幕时允许换行 */
+}
+
 .editor-actions {
   display: flex;
   gap: var(--spacing-sm);
+  flex-shrink: 0; /* 防止按钮组被压缩 */
 }
 
 .editor-body {

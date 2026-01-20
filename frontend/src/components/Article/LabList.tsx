@@ -78,6 +78,14 @@ export default function LabList() {
     return firstNonEmptyLine || '暂无预览内容';
   };
 
+  // 获取文章摘要：优先使用设置的摘要，否则从内容中提取
+  const getArticleExcerpt = (article: Article) => {
+    if (article.excerpt && article.excerpt.trim()) {
+      return article.excerpt.trim();
+    }
+    return extractExcerpt(article.content);
+  };
+
   // 尝试从imagePlans中获取封面图片
   const getCoverImage = (article: Article): string | null => {
     // 先尝试从imagePlans中获取第一张图片
@@ -236,7 +244,7 @@ export default function LabList() {
                 <div className="lab-card-content">
                   <h2 className="lab-title">{article.title}</h2>
                   <p className="lab-excerpt">
-                    {extractExcerpt(article.content)}
+                    {getArticleExcerpt(article)}
                   </p>
                 </div>
               </div>

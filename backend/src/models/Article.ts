@@ -10,6 +10,7 @@ export interface Article {
   category?: string; // 'blog' 或 'lab'
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
+  excerpt?: string; // 文章摘要
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +23,7 @@ export interface CreateArticleData {
   category?: string;
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
+  excerpt?: string; // 文章摘要
 }
 
 export interface UpdateArticleData {
@@ -31,6 +33,7 @@ export interface UpdateArticleData {
   category?: string;
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
+  excerpt?: string; // 文章摘要
 }
 
 export class ArticleModel {
@@ -95,8 +98,8 @@ export class ArticleModel {
     const chinaTime = getChinaDateTimeString();
     const published = data.published !== undefined ? data.published : 1; // 默认为已发布
     const result = db
-      .prepare('INSERT INTO articles (title, content, authorId, imagePlans, category, published, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(data.title, data.content, data.authorId, data.imagePlans || null, data.category || 'blog', published, data.sortOrder || null, chinaTime, chinaTime);
+      .prepare('INSERT INTO articles (title, content, authorId, imagePlans, category, published, sortOrder, excerpt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(data.title, data.content, data.authorId, data.imagePlans || null, data.category || 'blog', published, data.sortOrder || null, data.excerpt || null, chinaTime, chinaTime);
     
     return this.findById(result.lastInsertRowid as number)!;
   }
@@ -135,6 +138,10 @@ export class ArticleModel {
     if (data.sortOrder !== undefined) {
       updates.push('sortOrder = ?');
       values.push(data.sortOrder);
+    }
+    if (data.excerpt !== undefined) {
+      updates.push('excerpt = ?');
+      values.push(data.excerpt || null);
     }
 
     if (updates.length === 0) {

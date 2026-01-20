@@ -70,6 +70,14 @@ export default function ArticleList() {
     return firstNonEmptyLine || '暂无预览内容';
   };
 
+  // 获取文章摘要：优先使用设置的摘要，否则从内容中提取
+  const getArticleExcerpt = (article: Article) => {
+    if (article.excerpt && article.excerpt.trim()) {
+      return article.excerpt.trim();
+    }
+    return extractExcerpt(article.content);
+  };
+
   return (
     <div className="article-list">
       {articles.map((article) => (
@@ -77,7 +85,7 @@ export default function ArticleList() {
           <Link to={`/article/${article.id}`}>
             <h2 className="article-title">{article.title}</h2>
             <p className="article-excerpt">
-              {extractExcerpt(article.content)}
+              {getArticleExcerpt(article)}
             </p>
             <div className="article-date">
               {formatDate(article.createdAt)}
