@@ -239,6 +239,12 @@ export default function EditorPage() {
     }
   };
 
+  // 处理从URL获取的文章内容
+  const handleFetchArticle = (fetchedTitle: string, fetchedContent: string) => {
+    setTitle(fetchedTitle);
+    setContent(fetchedContent);
+  };
+
   const handleSaveDraft = async () => {
     if (!title.trim() && !content.trim()) {
       alert('请填写标题或内容');
@@ -411,6 +417,7 @@ export default function EditorPage() {
               title={title}
               imagePlans={imagePlans || undefined}
               onSaveImagePlans={handleSaveImagePlans}
+              onFetchArticle={handleFetchArticle}
             />
           </div>
         </form>

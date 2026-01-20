@@ -64,4 +64,9 @@ export const articleService = {
     const response = await api.get<Article[]>('/articles/unpublished');
     return response.data;
   },
+
+  fetchArticleFromUrl: async (url: string): Promise<{ title: string; content: string }> => {
+    const response = await api.post<{ title: string; content: string }>('/articles/fetch-from-url', { url });
+    return response.data;
+  },
 };

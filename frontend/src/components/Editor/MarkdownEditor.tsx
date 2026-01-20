@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiImage, FiZap } from 'react-icons/fi';
+import { FiImage, FiZap, FiDownload } from 'react-icons/fi';
 import MDEditor from '@uiw/react-md-editor';
 import ImageUpload from './ImageUpload';
 import ImageGenerator from './ImageGenerator';
 import TextProcessDialog from './TextProcessDialog';
+import ArticleFetcher from './ArticleFetcher';
 import { uploadService } from '../../services/upload';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -17,6 +18,7 @@ interface MarkdownEditorProps {
   title?: string;
   imagePlans?: ImagePlan[];
   onSaveImagePlans?: (imagePlans: ImagePlan[]) => void;
+  onFetchArticle?: (title: string, content: string) => void;
 }
 
 export default function MarkdownEditor({
@@ -25,10 +27,12 @@ export default function MarkdownEditor({
   title = '',
   imagePlans,
   onSaveImagePlans,
+  onFetchArticle,
 }: MarkdownEditorProps) {
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showImageGenerator, setShowImageGenerator] = useState(false);
   const [showTextProcess, setShowTextProcess] = useState(false);
+  const [showArticleFetcher, setShowArticleFetcher] = useState(false);
   const [textProcessMode, setTextProcessMode] = useState<'polish' | 'rewrite'>('polish');
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
@@ -550,6 +554,17 @@ export default function MarkdownEditor({
           <FiZap />
           <span>AI图片生成</span>
         </button>
+        {onFetchArticle && (
+          <button
+            type="button"
+            onClick={() => setShowArticleFetcher(true)}
+            className="btn btn-secondary toolbar-btn"
+            title="获取文章内容"
+          >
+            <FiDownload />
+            <span>获取文章内容</span>
+          </button>
+        )}
         {uploading && (
           <span className="uploading-indicator">📤 上传中...</span>
         )}
@@ -600,6 +615,12 @@ export default function MarkdownEditor({
             setSelectedText('');
             setSelectedTextRange(null);
           }}
+        />
+      )}
+      {showArticleFetcher && onFetchArticle && (
+        <ArticleFetcher
+          onFetch={onFetchArticle}
+          onClose={() => setShowArticleFetcher(false)}
         />
       )}
       {showContextMenu && contextMenuPosition && (
