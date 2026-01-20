@@ -29,18 +29,17 @@ export interface CreateArticleData {
 export interface UpdateArticleData {
   title?: string;
   content?: string;
-  imagePlans?: string;
+  imagePlans?: string | null;
   category?: string;
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
-  excerpt?: string; // 文章摘要
+  excerpt?: string | null; // 文章摘要
 }
 
 export class ArticleModel {
   static findAll(category?: string, includeUnpublished: boolean = false): Article[] {
-    let query = 'SELECT * FROM articles';
     const conditions: string[] = [];
-    const params: any[] = [];
+    const params: unknown[] = [];
 
     // 如果不包含未发布文章，只查询已发布的
     if (!includeUnpublished) {
@@ -52,32 +51,29 @@ export class ArticleModel {
       params.push(category);
     }
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-
+    const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+    
     // 对于实验室文章，按 sortOrder 排序（NULL 值排在最后），然后按 createdAt DESC
     // 对于博客文章，按 createdAt DESC 排序
-    if (category === 'lab') {
-      query += ' ORDER BY CASE WHEN sortOrder IS NULL THEN 1 ELSE 0 END, sortOrder ASC, createdAt DESC';
-    } else {
-      query += ' ORDER BY createdAt DESC';
-    }
+    const orderClause = category === 'lab'
+      ? ' ORDER BY CASE WHEN sortOrder IS NULL THEN 1 ELSE 0 END, sortOrder ASC, createdAt DESC'
+      : ' ORDER BY createdAt DESC';
 
+    const query = `SELECT * FROM articles${whereClause}${orderClause}`;
     return db.prepare(query).all(...params) as Article[];
   }
 
   // 获取所有未发布的文章（仅作者可见）
   static findUnpublished(authorId?: number): Article[] {
-    let query = 'SELECT * FROM articles WHERE (published IS NULL OR published = 0)';
-    const params: any[] = [];
+    const conditions = ['(published IS NULL OR published = 0)'];
+    const params: unknown[] = [];
 
     if (authorId) {
-      query += ' AND authorId = ?';
+      conditions.push('authorId = ?');
       params.push(authorId);
     }
 
-    query += ' ORDER BY updatedAt DESC';
+    const query = `SELECT * FROM articles WHERE ${conditions.join(' AND ')} ORDER BY updatedAt DESC`;
     return db.prepare(query).all(...params) as Article[];
   }
 
@@ -112,36 +108,25 @@ export class ArticleModel {
     }
 
     const updates: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
 
-    if (data.title !== undefined) {
-      updates.push('title = ?');
-      values.push(data.title);
-    }
-    if (data.content !== undefined) {
-      updates.push('content = ?');
-      values.push(data.content);
-    }
-    if (data.imagePlans !== undefined) {
-      updates.push('imagePlans = ?');
-      values.push(data.imagePlans || null);
-    }
-    if (data.category !== undefined) {
-      updates.push('category = ?');
-      values.push(data.category);
-    }
-    if (data.published !== undefined) {
-      updates.push('published = ?');
-      values.push(data.published);
-      console.log(`[ArticleModel.update] Adding published update: ${data.published} for article ${id}`);
-    }
-    if (data.sortOrder !== undefined) {
-      updates.push('sortOrder = ?');
-      values.push(data.sortOrder);
-    }
-    if (data.excerpt !== undefined) {
-      updates.push('excerpt = ?');
-      values.push(data.excerpt || null);
+    // 构建更新字段和值
+    const updateFields: Array<keyof UpdateArticleData> = [
+      'title',
+      'content',
+      'imagePlans',
+      'category',
+      'published',
+      'sortOrder',
+      'excerpt',
+    ];
+
+    for (const field of updateFields) {
+      if (data[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        // 对于可选字段，将 undefined 转为 null
+        values.push(data[field] ?? null);
+      }
     }
 
     if (updates.length === 0) {
@@ -155,14 +140,11 @@ export class ArticleModel {
     values.push(id);
 
     const updateQuery = `UPDATE articles SET ${updates.join(', ')} WHERE id = ?`;
-    console.log(`[ArticleModel.update] Executing: ${updateQuery}`, values);
-    const result = db.prepare(updateQuery).run(...values);
-    console.log(`[ArticleModel.update] Update result:`, result);
+    db.prepare(updateQuery).run(...values);
     
     // 更新后返回文章时，允许查找未发布的文章（因为可能刚刚从草稿发布）
     const updated = this.findById(id, true);
-    console.log(`[ArticleModel.update] Retrieved article after update, published:`, updated?.published);
-    return updated!;
+    return updated ?? null;
   }
 
   static delete(id: number, authorId: number): boolean {

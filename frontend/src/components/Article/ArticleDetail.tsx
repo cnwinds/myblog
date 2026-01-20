@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import ReactMarkdown, { Components } from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { articleService, Article } from '../../services/article';
+import { articleService, type Article } from '../../services/article';
 import { useAuth } from '../../hooks/useAuth';
 import { formatChinaDateTime } from '../../utils/dateUtils';
 import { visitService } from '../../services/visit';
@@ -10,8 +10,8 @@ import ImagePreview from './ImagePreview';
 import './ArticleDetail.css';
 
 const DELETE_CONFIRM_MESSAGES = {
-  first: (title: string) => `确定要删除文章《${title}》吗？\n\n此操作不可撤销！`,
-  second: (title: string) => `请再次确认：您真的要删除文章《${title}》吗？\n\n删除后将无法恢复！`,
+  first: (title: string): string => `确定要删除文章《${title}》吗？\n\n此操作不可撤销！`,
+  second: (title: string): string => `请再次确认：您真的要删除文章《${title}》吗？\n\n删除后将无法恢复！`,
 } as const;
 
 export default function ArticleDetail() {
@@ -86,7 +86,11 @@ export default function ArticleDetail() {
       <img
         {...props}
         src={src}
-        onClick={() => src && handleImageClick(src)}
+        onClick={() => {
+          if (src) {
+            handleImageClick(src);
+          }
+        }}
         style={{ cursor: 'pointer' }}
         alt={alt || '图片'}
       />

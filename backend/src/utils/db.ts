@@ -31,57 +31,35 @@ export function initDatabase() {
     )
   `);
 
-  // 为现有表添加 imagePlans 字段（如果不存在）
-  try {
-    db.exec(`ALTER TABLE articles ADD COLUMN imagePlans TEXT`);
-  } catch (error: any) {
-    // 字段已存在，忽略错误
-    if (!error.message.includes('duplicate column name')) {
-      console.warn('Failed to add imagePlans column:', error.message);
-    }
-  }
+  // 为现有表添加字段（如果不存在）
+  const alterTableColumns = [
+    { column: 'imagePlans', sql: 'ALTER TABLE articles ADD COLUMN imagePlans TEXT' },
+    { 
+      column: 'category', 
+      sql: `ALTER TABLE articles ADD COLUMN category TEXT DEFAULT 'blog'`,
+      updateSql: `UPDATE articles SET category = 'blog' WHERE category IS NULL`
+    },
+    { 
+      column: 'published', 
+      sql: 'ALTER TABLE articles ADD COLUMN published INTEGER DEFAULT 1',
+      updateSql: 'UPDATE articles SET published = 1 WHERE published IS NULL'
+    },
+    { column: 'sortOrder', sql: 'ALTER TABLE articles ADD COLUMN sortOrder INTEGER' },
+    { column: 'excerpt', sql: 'ALTER TABLE articles ADD COLUMN excerpt TEXT' },
+  ];
 
-  // 为现有表添加 category 字段（如果不存在），默认为 'blog'
-  try {
-    db.exec(`ALTER TABLE articles ADD COLUMN category TEXT DEFAULT 'blog'`);
-    // 更新现有文章，将category设置为'blog'
-    db.exec(`UPDATE articles SET category = 'blog' WHERE category IS NULL`);
-  } catch (error: any) {
-    // 字段已存在，忽略错误
-    if (!error.message.includes('duplicate column name')) {
-      console.warn('Failed to add category column:', error.message);
-    }
-  }
-
-  // 为现有表添加 published 字段（如果不存在），默认为 1（已发布）
-  try {
-    db.exec(`ALTER TABLE articles ADD COLUMN published INTEGER DEFAULT 1`);
-    // 更新现有文章，将published设置为1（已发布）
-    db.exec(`UPDATE articles SET published = 1 WHERE published IS NULL`);
-  } catch (error: any) {
-    // 字段已存在，忽略错误
-    if (!error.message.includes('duplicate column name')) {
-      console.warn('Failed to add published column:', error.message);
-    }
-  }
-
-  // 为现有表添加 sortOrder 字段（如果不存在），用于实验室文章的排序
-  try {
-    db.exec(`ALTER TABLE articles ADD COLUMN sortOrder INTEGER`);
-  } catch (error: any) {
-    // 字段已存在，忽略错误
-    if (!error.message.includes('duplicate column name')) {
-      console.warn('Failed to add sortOrder column:', error.message);
-    }
-  }
-
-  // 为现有表添加 excerpt 字段（如果不存在），用于文章摘要
-  try {
-    db.exec(`ALTER TABLE articles ADD COLUMN excerpt TEXT`);
-  } catch (error: any) {
-    // 字段已存在，忽略错误
-    if (!error.message.includes('duplicate column name')) {
-      console.warn('Failed to add excerpt column:', error.message);
+  for (const { column, sql, updateSql } of alterTableColumns) {
+    try {
+      db.exec(sql);
+      if (updateSql) {
+        db.exec(updateSql);
+      }
+    } catch (error: unknown) {
+      // 字段已存在，忽略错误
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('duplicate column name')) {
+        console.warn(`Failed to add ${column} column:`, errorMessage);
+      }
     }
   }
 
@@ -123,11 +101,18 @@ export function initDatabase() {
   `);
 
   // 创建索引以提高查询性能
-  try {
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_visit_logs_articleId ON visit_logs(articleId)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_visit_logs_visitedAt ON visit_logs(visitedAt)`);
-  } catch (error: any) {
-    console.warn('Failed to create visit_logs indexes:', error.message);
+  const indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_visit_logs_articleId ON visit_logs(articleId)',
+    'CREATE INDEX IF NOT EXISTS idx_visit_logs_visitedAt ON visit_logs(visitedAt)',
+  ];
+
+  for (const indexSql of indexes) {
+    try {
+      db.exec(indexSql);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn('Failed to create index:', errorMessage);
+    }
   }
 
   console.log('Database initialized successfully');

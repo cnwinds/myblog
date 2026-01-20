@@ -1,104 +1,108 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { ProviderModel, CreateProviderData, UpdateProviderData } from '../models/Provider';
+import { createApiError, handleError } from '../utils/errorHandler';
 
-export function getProviders(req: AuthRequest, res: Response) {
+export async function getProviders(req: AuthRequest, res: Response): Promise<void> {
   try {
     const providers = ProviderModel.findAll();
     // 解析models JSON字符串
     const providersWithParsedModels = providers.map(p => ({
       ...p,
-      models: JSON.parse(p.models),
+      models: JSON.parse(p.models) as string[],
       enabled: p.enabled === 1,
     }));
     res.json(providersWithParsedModels);
   } catch (error) {
-    console.error('Get providers error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '获取提供商列表失败');
   }
 }
 
-export function getProvider(req: AuthRequest, res: Response) {
+export async function getProvider(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id);
-    const provider = ProviderModel.findById(id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw createApiError('Invalid provider ID', 400);
+    }
 
+    const provider = ProviderModel.findById(id);
     if (!provider) {
-      return res.status(404).json({ error: 'Provider not found' });
+      throw createApiError('Provider not found', 404);
     }
 
     res.json({
       ...provider,
-      models: JSON.parse(provider.models),
+      models: JSON.parse(provider.models) as string[],
       enabled: provider.enabled === 1,
     });
   } catch (error) {
-    console.error('Get provider error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '获取提供商详情失败');
   }
 }
 
-export function createProvider(req: AuthRequest, res: Response) {
+export async function createProvider(req: AuthRequest, res: Response): Promise<void> {
   try {
     const data: CreateProviderData = req.body;
 
     if (!data.name || !data.type || !data.models || data.models.length === 0) {
-      return res.status(400).json({ error: 'Name, type, and models are required' });
+      throw createApiError('Name, type, and models are required', 400);
     }
 
     // 检查名称是否已存在
     const existing = ProviderModel.findByName(data.name);
     if (existing) {
-      return res.status(409).json({ error: 'Provider name already exists' });
+      throw createApiError('Provider name already exists', 409);
     }
 
     const provider = ProviderModel.create(data);
     res.status(201).json({
       ...provider,
-      models: JSON.parse(provider.models),
+      models: JSON.parse(provider.models) as string[],
       enabled: provider.enabled === 1,
     });
   } catch (error) {
-    console.error('Create provider error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '创建提供商失败');
   }
 }
 
-export function updateProvider(req: AuthRequest, res: Response) {
+export async function updateProvider(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id);
-    const data: UpdateProviderData = req.body;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw createApiError('Invalid provider ID', 400);
+    }
 
+    const data: UpdateProviderData = req.body;
     const provider = ProviderModel.update(id, data);
 
     if (!provider) {
-      return res.status(404).json({ error: 'Provider not found' });
+      throw createApiError('Provider not found', 404);
     }
 
     res.json({
       ...provider,
-      models: JSON.parse(provider.models),
+      models: JSON.parse(provider.models) as string[],
       enabled: provider.enabled === 1,
     });
   } catch (error) {
-    console.error('Update provider error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '更新提供商失败');
   }
 }
 
-export function deleteProvider(req: AuthRequest, res: Response) {
+export async function deleteProvider(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw createApiError('Invalid provider ID', 400);
+    }
 
     const success = ProviderModel.delete(id);
-
     if (!success) {
-      return res.status(404).json({ error: 'Provider not found' });
+      throw createApiError('Provider not found', 404);
     }
 
     res.json({ message: 'Provider deleted successfully' });
   } catch (error) {
-    console.error('Delete provider error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '删除提供商失败');
   }
 }

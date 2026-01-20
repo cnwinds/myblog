@@ -290,13 +290,14 @@ export async function callImageGeneration(
   
   // 如果提供了 providerId 和 model，使用指定的提供商和模型
   if (options?.providerId && options?.model) {
-    provider = ProviderModel.findById(options.providerId);
-    if (!provider || !provider.enabled) {
+    const foundProvider = ProviderModel.findById(options.providerId);
+    if (!foundProvider || !foundProvider.enabled) {
       throw new Error('Provider not found or disabled');
     }
-    if (provider.type !== 'image') {
+    if (foundProvider.type !== 'image') {
       throw new Error('Provider is not an image generation provider');
     }
+    provider = foundProvider;
     model = options.model;
   } else {
     // 否则使用默认配置的提供商

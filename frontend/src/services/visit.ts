@@ -9,4 +9,4 @@ export const visitService = {
       console.warn('Failed to record visit:', error);
     }
   },
-};
+} as const;

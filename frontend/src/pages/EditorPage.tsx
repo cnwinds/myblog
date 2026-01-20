@@ -1,10 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { articleService } from '../services/article';
-import { ImagePlan } from '../services/ai';
+import { type ImagePlan } from '../services/ai';
 import MarkdownEditor from '../components/Editor/MarkdownEditor';
 import { getErrorMessage } from '../utils/errorHandler';
 import './EditorPage.css';
+
+type Category = 'blog' | 'lab';
+
+interface ArticleFormData {
+  title: string;
+  content: string;
+  category: Category;
+  excerpt: string;
+  imagePlans: ImagePlan[] | null;
+}
 
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,7 +23,7 @@ export default function EditorPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [excerpt, setExcerpt] = useState('');
-  const [category, setCategory] = useState<'blog' | 'lab'>('blog');
+  const [category, setCategory] = useState<Category>('blog');
   const [imagePlans, setImagePlans] = useState<ImagePlan[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,8 +31,13 @@ export default function EditorPage() {
   const [autoSaving, setAutoSaving] = useState(false);
 
   // 使用 ref 来跟踪自动保存
-  const lastSavedRef = useRef<{ title: string; content: string; category: string; excerpt: string }>({ title: '', content: '', category: '', excerpt: '' });
-  const currentValuesRef = useRef<{ title: string; content: string; category: string; excerpt: string; imagePlans: ImagePlan[] | null; articleId: number | null }>({
+  const lastSavedRef = useRef<Omit<ArticleFormData, 'imagePlans'>>({
+    title: '',
+    content: '',
+    category: 'blog',
+    excerpt: '',
+  });
+  const currentValuesRef = useRef<ArticleFormData & { articleId: number | null }>({
     title: '',
     content: '',
     category: 'blog',
@@ -131,13 +146,13 @@ export default function EditorPage() {
       setTitle(article.title);
       setContent(article.content);
       setExcerpt(article.excerpt || '');
-      setCategory((article.category as 'blog' | 'lab') || 'blog');
+      setCategory((article.category as Category) || 'blog');
       
       // 更新最后保存的内容
       lastSavedRef.current = {
         title: article.title,
         content: article.content,
-        category: (article.category as 'blog' | 'lab') || 'blog',
+        category: (article.category as Category) || 'blog',
         excerpt: article.excerpt || '',
       };
       
@@ -247,10 +262,10 @@ export default function EditorPage() {
   };
 
   // 处理从URL获取的文章内容
-  const handleFetchArticle = (fetchedTitle: string, fetchedContent: string) => {
+  const handleFetchArticle = useCallback((fetchedTitle: string, fetchedContent: string) => {
     setTitle(fetchedTitle);
     setContent(fetchedContent);
-  };
+  }, []);
 
   const handleSaveDraft = async () => {
     if (!title.trim() && !content.trim()) {
@@ -375,7 +390,7 @@ export default function EditorPage() {
                 />
                 <select
                   value={category}
-                  onChange={(e) => setCategory(e.target.value as 'blog' | 'lab')}
+                  onChange={(e) => setCategory(e.target.value as Category)}
                   className="category-select"
                 >
                   <option value="blog">博客</option>

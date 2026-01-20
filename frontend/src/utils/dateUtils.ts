@@ -1,3 +1,6 @@
+const CHINA_TIMEZONE = 'Asia/Shanghai';
+const CHINA_UTC_OFFSET = '+08:00';
+
 /**
  * 将数据库返回的日期时间字符串（假设为中国时区）转换为 Date 对象
  * @param dateString 日期时间字符串（格式：YYYY-MM-DD HH:MM:SS）
@@ -8,10 +11,10 @@ function parseChinaDateTime(dateString: string): Date {
   if (dateString.includes('+') || dateString.includes('Z') || dateString.includes('T')) {
     return new Date(dateString);
   }
-  
+
   // 如果格式是 "YYYY-MM-DD HH:MM:SS"，假设它是中国时区（UTC+8）
   // 将其转换为 ISO 格式并添加时区信息
-  const isoString = dateString.replace(' ', 'T') + '+08:00';
+  const isoString = dateString.replace(' ', 'T') + CHINA_UTC_OFFSET;
   return new Date(isoString);
 }
 
@@ -22,10 +25,10 @@ function parseChinaDateTime(dateString: string): Date {
  */
 export function formatChinaDateTime(dateString: string): string {
   const date = parseChinaDateTime(dateString);
-  
+
   // 使用中国时区格式化
   return date.toLocaleString('zh-CN', {
-    timeZone: 'Asia/Shanghai',
+    timeZone: CHINA_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -44,13 +47,13 @@ export function formatChinaDateTime(dateString: string): string {
  */
 export function formatChinaDate(dateString: string, locale: string = 'en-US'): string {
   const date = parseChinaDateTime(dateString);
-  
+
   const options: Intl.DateTimeFormatOptions = {
-    timeZone: 'Asia/Shanghai',
+    timeZone: CHINA_TIMEZONE,
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   };
-  
+
   return date.toLocaleDateString(locale, options);
 }

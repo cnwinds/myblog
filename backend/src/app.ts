@@ -6,6 +6,7 @@ import fs from 'fs';
 import { initDatabase } from './utils/db';
 import db from './utils/db';
 import { UserModel } from './models/User';
+import { handleError } from './utils/errorHandler';
 import authRoutes from './routes/auth';
 import articleRoutes from './routes/articles';
 import uploadRoutes from './routes/upload';
@@ -23,7 +24,7 @@ const PORT = process.env.PORT || 3001;
 initDatabase();
 
 // 检查并创建默认用户（如果没有用户）
-(async () => {
+(async (): Promise<void> => {
   try {
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
     if (userCount.count === 0) {

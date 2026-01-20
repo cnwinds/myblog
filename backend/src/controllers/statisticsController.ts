@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import db from '../utils/db';
+import { handleError } from '../utils/errorHandler';
 
 export interface StatisticsData {
   totalVisits: number;
@@ -11,7 +12,7 @@ export interface StatisticsData {
   visitsByDate: Array<{ date: string; count: number }>;
 }
 
-export function getStatistics(req: AuthRequest, res: Response) {
+export async function getStatistics(req: AuthRequest, res: Response): Promise<void> {
   try {
     // 使用范围查询代替 DATE() 函数，可以利用索引
     const now = new Date();
@@ -64,8 +65,7 @@ export function getStatistics(req: AuthRequest, res: Response) {
     };
 
     res.json(statistics);
-  } catch (error: any) {
-    console.error('Error getting statistics:', error);
-    res.status(500).json({ error: '获取统计数据失败' });
+  } catch (error) {
+    handleError(res, error, '获取统计数据失败');
   }
 }

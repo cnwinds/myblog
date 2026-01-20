@@ -70,7 +70,7 @@ export class ProviderModel {
     }
 
     const updates: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (data.name !== undefined) {
       updates.push('name = ?');
@@ -82,11 +82,11 @@ export class ProviderModel {
     }
     if (data.apiKey !== undefined) {
       updates.push('apiKey = ?');
-      values.push(data.apiKey || null);
+      values.push(data.apiKey ?? null);
     }
     if (data.apiBase !== undefined) {
       updates.push('apiBase = ?');
-      values.push(data.apiBase || null);
+      values.push(data.apiBase ?? null);
     }
     if (data.models !== undefined) {
       updates.push('models = ?');
@@ -105,7 +105,8 @@ export class ProviderModel {
     values.push(id);
 
     db.prepare(`UPDATE providers SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-    return this.findById(id)!;
+    const updated = this.findById(id);
+    return updated ?? null;
   }
 
   static delete(id: number): boolean {

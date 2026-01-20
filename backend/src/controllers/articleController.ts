@@ -1,53 +1,55 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { ArticleModel } from '../models/Article';
-import * as cheerio from 'cheerio';
+import cheerio from 'cheerio';
 import TurndownService from 'turndown';
+import { createApiError, handleError } from '../utils/errorHandler';
 
 // 未登录用户可以查看文章（只读，只返回已发布的）
-export function getArticles(req: Request, res: Response) {
+export async function getArticles(req: Request, res: Response): Promise<void> {
   try {
     const category = req.query.category as string | undefined;
     const articles = ArticleModel.findAll(category, false); // 不包含未发布的
     res.json(articles);
   } catch (error) {
-    console.error('Get articles error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '获取文章列表失败');
   }
 }
 
 // 未登录用户可以查看文章详情（只读，只返回已发布的）
-export function getArticle(req: Request, res: Response) {
+export async function getArticle(req: Request, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id);
-    const article = ArticleModel.findById(id, false); // 不包含未发布的
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw createApiError('Invalid article ID', 400);
+    }
 
+    const article = ArticleModel.findById(id, false); // 不包含未发布的
     if (!article) {
-      return res.status(404).json({ error: 'Article not found' });
+      throw createApiError('Article not found', 404);
     }
 
     res.json(article);
   } catch (error) {
-    console.error('Get article error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '获取文章详情失败');
   }
 }
 
 // 登录用户可以创建文章
-export function createArticle(req: AuthRequest, res: Response) {
+export async function createArticle(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { title, content, imagePlans, category, published, sortOrder, excerpt } = req.body;
 
     if (!title || !content) {
-      return res.status(400).json({ error: 'Title and content are required' });
+      throw createApiError('Title and content are required', 400);
     }
 
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      throw createApiError('Unauthorized', 401);
     }
 
     // published: true = 1 (已发布), false = 0 (草稿)
-    const publishedValue = published === false ? 0 : (published === true ? 1 : 1); // 默认为已发布
+    const publishedValue = published === false ? 0 : published === true ? 1 : 1; // 默认为已发布
 
     const article = ArticleModel.create({
       title,
@@ -62,22 +64,34 @@ export function createArticle(req: AuthRequest, res: Response) {
 
     res.status(201).json(article);
   } catch (error) {
-    console.error('Create article error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '创建文章失败');
   }
 }
 
 // 登录用户可以更新文章
-export function updateArticle(req: AuthRequest, res: Response) {
+export async function updateArticle(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw createApiError('Invalid article ID', 400);
+    }
+
     const { title, content, imagePlans, category, published, sortOrder, excerpt } = req.body;
 
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      throw createApiError('Unauthorized', 401);
     }
 
-    const updateData: any = {};
+    const updateData: {
+      title?: string;
+      content?: string;
+      imagePlans?: string | null;
+      category?: string;
+      published?: number;
+      sortOrder?: number;
+      excerpt?: string | null;
+    } = {};
+
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
     if (imagePlans !== undefined) {
@@ -86,70 +100,62 @@ export function updateArticle(req: AuthRequest, res: Response) {
     if (category !== undefined) updateData.category = category;
     if (published !== undefined) {
       // published: true = 1 (已发布), false = 0 (草稿)
-      updateData.published = published === false ? 0 : (published === true ? 1 : 1);
-      console.log(`[updateArticle] Setting published to ${updateData.published} for article ${id}, received:`, published);
+      updateData.published = published === false ? 0 : published === true ? 1 : 1;
     }
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
-    if (excerpt !== undefined) updateData.excerpt = excerpt;
+    if (excerpt !== undefined) updateData.excerpt = excerpt || null;
 
     // 更新时允许查询未发布的文章
     const article = ArticleModel.findById(id, true);
     if (!article || article.authorId !== req.userId) {
-      return res.status(404).json({ error: 'Article not found or unauthorized' });
+      throw createApiError('Article not found or unauthorized', 404);
     }
-
-    console.log(`[updateArticle] Before update - article ${id} published status:`, article.published);
-    console.log(`[updateArticle] Update data:`, updateData);
     
     const updatedArticle = ArticleModel.update(id, updateData, req.userId);
-    
-    console.log(`[updateArticle] After update - article ${id} published status:`, updatedArticle?.published);
-
     if (!updatedArticle) {
-      return res.status(404).json({ error: 'Article not found or unauthorized' });
+      throw createApiError('Article not found or unauthorized', 404);
     }
 
     res.json(updatedArticle);
   } catch (error) {
-    console.error('Update article error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '更新文章失败');
   }
 }
 
 // 登录用户可以删除文章
-export function deleteArticle(req: AuthRequest, res: Response) {
+export async function deleteArticle(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw createApiError('Invalid article ID', 400);
+    }
 
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      throw createApiError('Unauthorized', 401);
     }
 
     const success = ArticleModel.delete(id, req.userId);
-
     if (!success) {
-      return res.status(404).json({ error: 'Article not found or unauthorized' });
+      throw createApiError('Article not found or unauthorized', 404);
     }
 
     res.json({ message: 'Article deleted successfully' });
   } catch (error) {
-    console.error('Delete article error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '删除文章失败');
   }
 }
 
 // 获取所有未发布的文章（仅登录用户可见自己的草稿）
-export function getUnpublishedArticles(req: AuthRequest, res: Response) {
+export async function getUnpublishedArticles(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      throw createApiError('Unauthorized', 401);
     }
 
     const articles = ArticleModel.findUnpublished(req.userId);
     res.json(articles);
   } catch (error) {
-    console.error('Get unpublished articles error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '获取未发布文章失败');
   }
 }
 
@@ -278,7 +284,7 @@ export async function fetchArticleFromUrl(req: AuthRequest, res: Response) {
     // 配置图片转换规则，保留图片
     turndownService.addRule('images', {
       filter: 'img',
-      replacement: (content, node: any) => {
+      replacement: (_content: string, node: any) => {
         const src = node.getAttribute('src') || '';
         const alt = node.getAttribute('alt') || '图片';
         if (src) {
@@ -294,10 +300,7 @@ export async function fetchArticleFromUrl(req: AuthRequest, res: Response) {
       title: title || '未命名文章',
       content: markdown,
     });
-  } catch (error: any) {
-    console.error('Fetch article from URL error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Failed to fetch article from URL' 
-    });
+  } catch (error) {
+    handleError(res, error, '从URL获取文章失败');
   }
 }

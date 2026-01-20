@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiSettings } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
@@ -10,22 +10,37 @@ import SettingsDrawer from '../components/Settings/SettingsDrawer';
 import logo from '../assets/logo.svg';
 import './HomePage.css';
 
+type Category = 'blog' | 'lab';
+
+const LAB_PATH = '/lab';
+const HOME_PATH = '/';
+
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // 从URL路径判断当前分类，/lab 表示实验室，其他表示博客
-  const currentCategory = location.pathname === '/lab' ? 'lab' : 'blog';
 
-  const handleCategoryChange = (category: 'blog' | 'lab') => {
-    if (category === 'lab') {
-      navigate('/lab');
-    } else {
-      navigate('/');
-    }
-  };
+  // 从URL路径判断当前分类，/lab 表示实验室，其他表示博客
+  const currentCategory = useMemo<Category>(
+    () => (location.pathname === LAB_PATH ? 'lab' : 'blog'),
+    [location.pathname]
+  );
+
+  const handleCategoryChange = useCallback(
+    (category: Category) => {
+      navigate(category === 'lab' ? LAB_PATH : HOME_PATH);
+    },
+    [navigate]
+  );
+
+  const handleOpenSettings = useCallback(() => {
+    setIsSettingsOpen(true);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
 
   // 记录首页访问量
   useEffect(() => {
@@ -45,12 +60,14 @@ export default function HomePage() {
               <button
                 className={`category-tab ${currentCategory === 'blog' ? 'active' : ''}`}
                 onClick={() => handleCategoryChange('blog')}
+                type="button"
               >
                 博客
               </button>
               <button
                 className={`category-tab ${currentCategory === 'lab' ? 'active' : ''}`}
                 onClick={() => handleCategoryChange('lab')}
+                type="button"
               >
                 实验室
               </button>
@@ -62,10 +79,11 @@ export default function HomePage() {
                   <Link to="/drafts" className="nav-link">草稿箱</Link>
                   <div className="nav-divider"></div>
                   <ThemeToggle />
-                  <button 
-                    onClick={() => setIsSettingsOpen(true)} 
-                    className="settings-icon" 
+                  <button
+                    onClick={handleOpenSettings}
+                    className="settings-icon"
                     title="系统设置"
+                    type="button"
                   >
                     <FiSettings />
                   </button>
@@ -80,10 +98,7 @@ export default function HomePage() {
       <main className="main-content">
         {currentCategory === 'lab' ? <LabList /> : <ArticleList />}
       </main>
-      <SettingsDrawer 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-      />
+      <SettingsDrawer isOpen={isSettingsOpen} onClose={handleCloseSettings} />
     </div>
   );
 }

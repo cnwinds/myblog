@@ -2,24 +2,24 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth';
 import { UserModel } from '../models/User';
-import { comparePassword } from '../utils/password';
+import { createApiError, handleError } from '../utils/errorHandler';
 
 // 确保在运行时读取环境变量
 function getJwtSecret(): string {
   return process.env.JWT_SECRET || 'your-secret-key';
 }
 
-export async function login(req: Request, res: Response) {
+export async function login(req: Request, res: Response): Promise<void> {
   try {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      throw createApiError('Username and password are required', 400);
     }
 
     const user = await UserModel.verifyPassword(username, password);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      throw createApiError('Invalid credentials', 401);
     }
 
     const token = jwt.sign({ userId: user.id, username: user.username }, getJwtSecret(), {
@@ -34,26 +34,25 @@ export async function login(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '登录失败');
   }
 }
 
-export async function register(req: Request, res: Response) {
+export async function register(req: Request, res: Response): Promise<void> {
   try {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      throw createApiError('Username and password are required', 400);
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      throw createApiError('Password must be at least 6 characters', 400);
     }
 
     const existingUser = UserModel.findByUsername(username);
     if (existingUser) {
-      return res.status(409).json({ error: 'Username already exists' });
+      throw createApiError('Username already exists', 409);
     }
 
     const user = await UserModel.create({ username, password });
@@ -69,47 +68,45 @@ export async function register(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '注册失败');
   }
 }
 
-export async function changePassword(req: AuthRequest, res: Response) {
+export async function changePassword(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { oldPassword, newPassword } = req.body;
 
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({ error: '旧密码和新密码都是必填项' });
+      throw createApiError('旧密码和新密码都是必填项', 400);
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ error: '新密码长度至少为6个字符' });
+      throw createApiError('新密码长度至少为6个字符', 400);
     }
 
     if (!req.userId) {
-      return res.status(401).json({ error: '未授权' });
+      throw createApiError('未授权', 401);
     }
 
     const user = UserModel.findById(req.userId);
     if (!user) {
-      return res.status(404).json({ error: '用户不存在' });
+      throw createApiError('用户不存在', 404);
     }
 
     // 验证旧密码
-    const isValid = await comparePassword(oldPassword, user.password);
+    const isValid = await UserModel.verifyPassword(user.username, oldPassword);
     if (!isValid) {
-      return res.status(401).json({ error: '旧密码不正确' });
+      throw createApiError('旧密码不正确', 401);
     }
 
     // 更新密码
     const success = await UserModel.updatePassword(req.userId, newPassword);
     if (!success) {
-      return res.status(500).json({ error: '密码更新失败' });
+      throw createApiError('密码更新失败', 500);
     }
 
     res.json({ message: '密码修改成功' });
   } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({ error: '内部服务器错误' });
+    handleError(res, error, '内部服务器错误');
   }
 }

@@ -4,16 +4,17 @@ import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
 import { getYearAndWeek } from '../utils/dateUtils';
+import { createApiError, handleError } from '../utils/errorHandler';
 
 // 图片处理配置
 const MAX_WIDTH = 1920; // 最大宽度（高清显示）
 const MAX_HEIGHT = 1920; // 最大高度（高清显示）
 const JPEG_QUALITY = 70; // JPG 质量 (1-100)，提高质量以保持清晰度
 
-export async function uploadImage(req: AuthRequest, res: Response) {
+export async function uploadImage(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      throw createApiError('No file uploaded', 400);
     }
 
     const originalPath = req.file.path;
@@ -62,17 +63,15 @@ export async function uploadImage(req: AuthRequest, res: Response) {
     
     res.json({ url: imageUrl });
   } catch (error) {
-    console.error('Upload error:', error);
-    
     // 清理可能创建的文件
     if (req.file?.path) {
       try {
         fs.unlinkSync(req.file.path);
-      } catch (err) {
+      } catch {
         // 忽略删除错误
       }
     }
     
-    res.status(500).json({ error: 'Internal server error' });
+    handleError(res, error, '图片上传失败');
   }
 }

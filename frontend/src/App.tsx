@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { useAuth } from './hooks/useAuth';
 
 // 使用 React.lazy 实现代码分割
@@ -11,23 +11,33 @@ const ArticleDetail = lazy(() => import('./components/Article/ArticleDetail'));
 
 // 加载中的占位组件
 function LoadingFallback() {
-  return <div style={{ 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    minHeight: '100vh',
-    fontSize: '16px'
-  }}>加载中...</div>;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        fontSize: '16px',
+      }}
+    >
+      加载中...
+    </div>
+  );
 }
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
+interface PrivateRouteProps {
+  children: ReactNode;
+}
+
+function PrivateRoute({ children }: PrivateRouteProps) {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return <LoadingFallback />;
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function App() {
@@ -63,6 +73,7 @@ function App() {
             }
           />
           <Route path="/article/:id" element={<ArticleDetail />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

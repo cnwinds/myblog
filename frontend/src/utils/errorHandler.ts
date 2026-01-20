@@ -1,3 +1,15 @@
+interface AxiosErrorResponse {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+    status?: number;
+    statusText?: string;
+  };
+  config?: unknown;
+}
+
 /**
  * 从错误对象中提取错误消息
  * @param error 错误对象
@@ -11,12 +23,13 @@ export function getErrorMessage(
   if (error instanceof Error) {
     return error.message || defaultMessage;
   }
-  
+
   if (typeof error === 'object' && error !== null && 'response' in error) {
-    const axiosError = error as { response?: { data?: { error?: string } } };
-    return axiosError.response?.data?.error || defaultMessage;
+    const axiosError = error as AxiosErrorResponse;
+    const errorData = axiosError.response?.data;
+    return errorData?.error || errorData?.message || defaultMessage;
   }
-  
+
   return defaultMessage;
 }
 
@@ -27,22 +40,25 @@ export function getErrorMessage(
  */
 export function getErrorDetails(error: unknown): Record<string, unknown> {
   const details: Record<string, unknown> = {};
-  
+
   if (error instanceof Error) {
     details.message = error.message;
-    details.stack = error.stack;
+    if (error.stack) {
+      details.stack = error.stack;
+    }
   }
-  
+
   if (typeof error === 'object' && error !== null && 'response' in error) {
-    const axiosError = error as {
-      response?: { data?: unknown; status?: number; statusText?: string };
-      config?: unknown;
-    };
-    details.response = axiosError.response?.data;
-    details.status = axiosError.response?.status;
-    details.statusText = axiosError.response?.statusText;
-    details.config = axiosError.config;
+    const axiosError = error as AxiosErrorResponse;
+    if (axiosError.response) {
+      details.response = axiosError.response.data;
+      details.status = axiosError.response.status;
+      details.statusText = axiosError.response.statusText;
+    }
+    if (axiosError.config) {
+      details.config = axiosError.config;
+    }
   }
-  
+
   return details;
 }

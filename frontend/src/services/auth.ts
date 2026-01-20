@@ -50,6 +50,6 @@ export const authService = {
   },
 
   isAuthenticated: (): boolean => {
-    return !!storage.getToken();
+    return Boolean(storage.getToken());
   },
 };
