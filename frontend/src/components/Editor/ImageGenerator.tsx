@@ -251,6 +251,151 @@ export default function ImageGenerator({
     }
   }, [isGeneratingPrompt]);
 
+  // 生成单张图片
+  const handleGenerateImage = useCallback(async (index: number) => {
+    const task = generationTasks[index];
+    if (!task || task.status === 'generating') return;
+
+    console.log(`[DEBUG] handleGenerateImage(${index}): 开始生成，当前状态:`, task.status);
+    setGenerationTasks((prev) => {
+      const newTasks = [...prev];
+      newTasks[index] = {
+        ...prev[index],
+        status: 'generating',
+        error: undefined, // 清除旧的错误信息
+        // 保留已有的图片，不删除
+      };
+      console.log(`[DEBUG] handleGenerateImage(${index}): 状态已设置为 generating`);
+      return newTasks;
+    });
+
+    try {
+      // 使用 plan 中的 aspectRatio，如果没有则默认使用 16:9
+      const aspectRatio = task.plan.aspectRatio || '16:9';
+      // 使用 plan 中的 model，如果存在则传递
+      const model = task.plan.model;
+      const response = await generateImage(task.plan.prompt, {
+        aspectRatio,
+        model,
+      });
+      
+      // 获取模型显示名称
+      let modelName: string | undefined = undefined;
+      if (model) {
+        const option = imageModelOptions.find(opt => opt.value === model);
+        modelName = option ? option.label : model;
+      }
+
+      // 处理图片URL：如果是base64或data URL，需要先上传
+      let imageUrl = response.imageUrl;
+      
+      // 检查是否是base64格式
+      // 优先检查 response.imageBase64，其次检查 imageUrl 是否是 data URL
+      const hasBase64 = !!response.imageBase64;
+      const isDataUrl = imageUrl && imageUrl.startsWith('data:image/');
+      
+      if (hasBase64 || isDataUrl) {
+        try {
+          // 获取 base64 数据
+          let base64Data: string | undefined;
+          
+          if (response.imageBase64) {
+            // 如果直接提供了 base64 字段
+            base64Data = response.imageBase64;
+          } else if (isDataUrl && imageUrl) {
+            // 从 data URL 中提取 base64 部分
+            const commaIndex = imageUrl.indexOf(',');
+            if (commaIndex !== -1) {
+              base64Data = imageUrl.substring(commaIndex + 1);
+            }
+          }
+          
+          if (base64Data) {
+            // 清理 base64 字符串（移除可能的空白字符和前缀）
+            const base64String = base64Data
+              .replace(/^data:image\/\w+;base64,/, '')
+              .replace(/\s/g, ''); // 移除所有空白字符
+            
+            // 验证 base64 格式
+            if (base64String && /^[A-Za-z0-9+/=]+$/.test(base64String)) {
+              const byteCharacters = atob(base64String);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: 'image/png' });
+              const file = new File([blob], `generated-image-${index}-${Date.now()}.png`, { 
+                type: 'image/png' 
+              });
+              imageUrl = await uploadService.uploadImage(file);
+            } else {
+              console.warn('无效的 base64 格式，跳过转换，直接使用 imageUrl');
+            }
+          }
+        } catch (error) {
+          console.error('Base64 转换失败:', error);
+          // 如果转换失败，尝试直接使用 imageUrl（可能是普通 URL）
+          if (!imageUrl) {
+            throw new Error('无法获取图片 URL');
+          }
+        }
+      }
+      
+      // 确保最终有有效的 imageUrl
+      if (!imageUrl) {
+        throw new Error('未获取到有效的图片 URL');
+      }
+
+      // 将新生成的图片追加到数组中
+      const newImage = {
+        url: imageUrl,
+        model: model,
+        modelName: modelName,
+        generatedAt: new Date().toISOString(),
+      };
+
+      setGenerationTasks((prev) => {
+        const newTasks = [...prev];
+        const existingImages = prev[index].imageUrls || [];
+        const newImageUrls = [...existingImages, newImage]; // 追加新图片，保留所有旧图片
+        newTasks[index] = {
+          ...prev[index],
+          status: 'completed',
+          imageUrls: newImageUrls,
+          selectedImageIndex: newImageUrls.length - 1, // 默认选中最新生成的图片
+        };
+        // 保存更新后的图片规划（包含所有已生成的图片URL和模型信息）
+        if (onSaveImagePlans) {
+          const updatedPlans = newTasks.map((task) => ({
+            ...task.plan,
+            imageUrls: task.imageUrls || [], // 保存所有图片URL
+            selectedImageIndex: task.selectedImageIndex, // 保存选中的图片索引
+            model: task.plan.model, // 保存当前选择的模型信息
+            modelName: task.plan.modelName, // 保存当前选择的模型显示名称
+            // 向后兼容：保留最后一个图片URL
+            imageUrl: task.imageUrls && task.imageUrls.length > 0 
+              ? task.imageUrls[task.imageUrls.length - 1].url 
+              : undefined,
+          }));
+          onSaveImagePlans(updatedPlans);
+        }
+        return newTasks;
+      });
+    } catch (error) {
+      console.error('生成图片失败:', error);
+      setGenerationTasks((prev) => {
+        const newTasks = [...prev];
+        newTasks[index] = {
+          ...prev[index],
+          status: 'error',
+          error: getErrorMessage(error, '生成图片失败'),
+        };
+        return newTasks;
+      });
+    }
+  }, [generationTasks, imageModelOptions, onSaveImagePlans]);
+
   // 自动生成新添加的单图任务
   useEffect(() => {
     if (autoGenerateTaskIndexRef.current !== null && generationTasks.length > 0) {
@@ -438,151 +583,6 @@ export default function ImageGenerator({
     await handleAnalyze();
     console.log('[DEBUG] handleRegenerate: 重新生成完成');
   };
-
-  // 生成单张图片
-  const handleGenerateImage = useCallback(async (index: number) => {
-    const task = generationTasks[index];
-    if (!task || task.status === 'generating') return;
-
-    console.log(`[DEBUG] handleGenerateImage(${index}): 开始生成，当前状态:`, task.status);
-    setGenerationTasks((prev) => {
-      const newTasks = [...prev];
-      newTasks[index] = {
-        ...prev[index],
-        status: 'generating',
-        error: undefined, // 清除旧的错误信息
-        // 保留已有的图片，不删除
-      };
-      console.log(`[DEBUG] handleGenerateImage(${index}): 状态已设置为 generating`);
-      return newTasks;
-    });
-
-    try {
-      // 使用 plan 中的 aspectRatio，如果没有则默认使用 16:9
-      const aspectRatio = task.plan.aspectRatio || '16:9';
-      // 使用 plan 中的 model，如果存在则传递
-      const model = task.plan.model;
-      const response = await generateImage(task.plan.prompt, {
-        aspectRatio,
-        model,
-      });
-      
-      // 获取模型显示名称
-      let modelName: string | undefined = undefined;
-      if (model) {
-        const option = imageModelOptions.find(opt => opt.value === model);
-        modelName = option ? option.label : model;
-      }
-
-      // 处理图片URL：如果是base64或data URL，需要先上传
-      let imageUrl = response.imageUrl;
-      
-      // 检查是否是base64格式
-      // 优先检查 response.imageBase64，其次检查 imageUrl 是否是 data URL
-      const hasBase64 = !!response.imageBase64;
-      const isDataUrl = imageUrl && imageUrl.startsWith('data:image/');
-      
-      if (hasBase64 || isDataUrl) {
-        try {
-          // 获取 base64 数据
-          let base64Data: string | undefined;
-          
-          if (response.imageBase64) {
-            // 如果直接提供了 base64 字段
-            base64Data = response.imageBase64;
-          } else if (isDataUrl && imageUrl) {
-            // 从 data URL 中提取 base64 部分
-            const commaIndex = imageUrl.indexOf(',');
-            if (commaIndex !== -1) {
-              base64Data = imageUrl.substring(commaIndex + 1);
-            }
-          }
-          
-          if (base64Data) {
-            // 清理 base64 字符串（移除可能的空白字符和前缀）
-            const base64String = base64Data
-              .replace(/^data:image\/\w+;base64,/, '')
-              .replace(/\s/g, ''); // 移除所有空白字符
-            
-            // 验证 base64 格式
-            if (base64String && /^[A-Za-z0-9+/=]+$/.test(base64String)) {
-              const byteCharacters = atob(base64String);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              const byteArray = new Uint8Array(byteNumbers);
-              const blob = new Blob([byteArray], { type: 'image/png' });
-              const file = new File([blob], `generated-image-${index}-${Date.now()}.png`, { 
-                type: 'image/png' 
-              });
-              imageUrl = await uploadService.uploadImage(file);
-            } else {
-              console.warn('无效的 base64 格式，跳过转换，直接使用 imageUrl');
-            }
-          }
-        } catch (error) {
-          console.error('Base64 转换失败:', error);
-          // 如果转换失败，尝试直接使用 imageUrl（可能是普通 URL）
-          if (!imageUrl) {
-            throw new Error('无法获取图片 URL');
-          }
-        }
-      }
-      
-      // 确保最终有有效的 imageUrl
-      if (!imageUrl) {
-        throw new Error('未获取到有效的图片 URL');
-      }
-
-      // 将新生成的图片追加到数组中
-      const newImage = {
-        url: imageUrl,
-        model: model,
-        modelName: modelName,
-        generatedAt: new Date().toISOString(),
-      };
-
-      setGenerationTasks((prev) => {
-        const newTasks = [...prev];
-        const existingImages = prev[index].imageUrls || [];
-        const newImageUrls = [...existingImages, newImage]; // 追加新图片，保留所有旧图片
-        newTasks[index] = {
-          ...prev[index],
-          status: 'completed',
-          imageUrls: newImageUrls,
-          selectedImageIndex: newImageUrls.length - 1, // 默认选中最新生成的图片
-        };
-        // 保存更新后的图片规划（包含所有已生成的图片URL和模型信息）
-        if (onSaveImagePlans) {
-          const updatedPlans = newTasks.map((task) => ({
-            ...task.plan,
-            imageUrls: task.imageUrls || [], // 保存所有图片URL
-            selectedImageIndex: task.selectedImageIndex, // 保存选中的图片索引
-            model: task.plan.model, // 保存当前选择的模型信息
-            modelName: task.plan.modelName, // 保存当前选择的模型显示名称
-            // 向后兼容：保留最后一个图片URL
-            imageUrl: task.imageUrls && task.imageUrls.length > 0 
-              ? task.imageUrls[task.imageUrls.length - 1].url 
-              : undefined,
-          }));
-          onSaveImagePlans(updatedPlans);
-        }
-        return newTasks;
-      });
-    } catch (error) {
-      console.error('生成图片失败:', error);
-      setGenerationTasks((prev) => {
-        const newTasks = [...prev];
-        newTasks[index] = {
-          ...prev[index],
-          status: 'error',
-          error: getErrorMessage(error, '生成图片失败'),
-        };
-        return newTasks;
-      });
-    }
-  }, [generationTasks, imageModelOptions, onSaveImagePlans]);
 
   // 删除单个图片规划
   const handleDeleteImage = (index: number) => {
