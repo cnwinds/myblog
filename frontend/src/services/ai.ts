@@ -210,17 +210,22 @@ export async function findImagePositions(
 
 /**
  * 获取图片生成提示词模板
+ * @param type 'multi' 全篇生多图 | 'single' 选中文字生成单图
  */
-export async function getImagePromptTemplate(): Promise<string> {
-  const response = await api.get<{ template: string }>('/settings/image-prompt-template');
+export async function getImagePromptTemplate(type: 'multi' | 'single' = 'multi'): Promise<string> {
+  const response = await api.get<{ template: string }>('/settings/image-prompt-template', {
+    params: { type }
+  });
   return response.data.template || '';
 }
 
 /**
  * 保存图片生成提示词模板
+ * @param template 模板内容
+ * @param type 'multi' 全篇生多图 | 'single' 选中文字生成单图
  */
-export async function saveImagePromptTemplate(template: string): Promise<void> {
-  await api.post('/settings/image-prompt-template', { template });
+export async function saveImagePromptTemplate(template: string, type: 'multi' | 'single' = 'multi'): Promise<void> {
+  await api.post('/settings/image-prompt-template', { template, type });
 }
 
 /**

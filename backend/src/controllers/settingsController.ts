@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { SettingModel } from '../models/Setting';
 import { ProviderModel } from '../models/Provider';
-import { DEFAULT_IMAGE_PROMPT_TEMPLATE } from '../utils/imagePromptTemplate';
+import { DEFAULT_IMAGE_PROMPT_TEMPLATE, DEFAULT_SINGLE_IMAGE_PROMPT_TEMPLATE } from '../utils/imagePromptTemplate';
 import { createApiError, handleError } from '../utils/errorHandler';
 
 export async function getSettings(req: AuthRequest, res: Response): Promise<void> {
@@ -60,16 +60,33 @@ export async function saveSettings(req: AuthRequest, res: Response): Promise<voi
 // 获取图片生成提示词模板
 export async function getImagePromptTemplate(req: AuthRequest, res: Response): Promise<void> {
   try {
-    let template = SettingModel.get('image_prompt_template');
+    const type = req.query.type as string | undefined; // type: 'multi' | 'single'
     
-    // 如果数据库中没有模板，使用默认模板并保存到数据库
-    if (!template) {
-      template = DEFAULT_IMAGE_PROMPT_TEMPLATE;
-      SettingModel.set('image_prompt_template', template);
+    if (type === 'single') {
+      // 获取单图模板
+      let template = SettingModel.get('image_prompt_template_single');
+      
+      // 如果数据库中没有模板，使用默认模板并保存到数据库
+      if (!template) {
+        template = DEFAULT_SINGLE_IMAGE_PROMPT_TEMPLATE;
+        SettingModel.set('image_prompt_template_single', template);
+      }
+      
+      res.json({ template });
+    } else {
+      // 获取多图模板（默认）
+      let template = SettingModel.get('image_prompt_template');
+      
+      // 如果数据库中没有模板，使用默认模板并保存到数据库
+      if (!template) {
+        template = DEFAULT_IMAGE_PROMPT_TEMPLATE;
+        SettingModel.set('image_prompt_template', template);
+      }
+      
+      res.json({ template });
     }
-    
-    res.json({ template });
   } catch (error) {
+    console.error('获取图片提示词模板错误:', error);
     handleError(res, error, '获取图片提示词模板失败');
   }
 }
@@ -77,13 +94,18 @@ export async function getImagePromptTemplate(req: AuthRequest, res: Response): P
 // 保存图片生成提示词模板
 export async function saveImagePromptTemplate(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { template } = req.body;
+    const { template, type } = req.body; // type: 'multi' | 'single'
 
     if (typeof template !== 'string') {
       throw createApiError('Template must be a string', 400);
     }
 
-    SettingModel.set('image_prompt_template', template);
+    if (type === 'single') {
+      SettingModel.set('image_prompt_template_single', template);
+    } else {
+      SettingModel.set('image_prompt_template', template);
+    }
+    
     res.json({ message: 'Image prompt template saved successfully' });
   } catch (error) {
     handleError(res, error, '保存图片提示词模板失败');

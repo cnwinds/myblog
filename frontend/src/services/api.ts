@@ -65,11 +65,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // 处理 401 未授权错误
-    if (error.response?.status === 401) {
-      const url = error.config?.url || '';
-      const method = error.config?.method || 'get';
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+    const method = error.config?.method || 'get';
 
+    // 处理 401 未授权错误
+    if (status === 401) {
       // 公开路由的 401 错误，完全不处理（不跳转，不清除 token，不记录）
       if (isPublicRoute(url, method)) {
         // 公开路由不应该返回 401，如果返回了，可能是后端问题
@@ -82,6 +83,17 @@ api.interceptors.response.use(
       storage.clear();
       console.warn('401 Unauthorized for protected route:', url);
     }
+
+    // 处理 403 禁止访问错误（通常是 token 过期或无效）
+    if (status === 403) {
+      // 公开路由不应该返回 403
+      if (!isPublicRoute(url, method)) {
+        // 清除可能无效的 token
+        storage.clear();
+        console.warn('403 Forbidden for protected route (token may be invalid or expired):', url);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

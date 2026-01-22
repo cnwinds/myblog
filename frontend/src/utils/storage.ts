@@ -1,6 +1,20 @@
 const TOKEN_KEY = 'blog_token';
 const USER_KEY = 'blog_user';
 
+// 存储变化事件名称
+const STORAGE_CLEARED_EVENT = 'storage:cleared';
+const STORAGE_TOKEN_SET_EVENT = 'storage:token:set';
+const STORAGE_USER_SET_EVENT = 'storage:user:set';
+
+/**
+ * 触发自定义存储事件
+ */
+function emitStorageEvent(eventName: string, data?: unknown): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(eventName, { detail: data }));
+  }
+}
+
 export interface StoredUser {
   id: number;
   username: string;
@@ -33,6 +47,7 @@ export const storage = {
     safeLocalStorageOperation(
       () => {
         localStorage.setItem(TOKEN_KEY, token);
+        emitStorageEvent(STORAGE_TOKEN_SET_EVENT, { token });
         return null;
       },
       'Failed to set token to localStorage:'
@@ -43,6 +58,7 @@ export const storage = {
     safeLocalStorageOperation(
       () => {
         localStorage.removeItem(TOKEN_KEY);
+        emitStorageEvent(STORAGE_TOKEN_SET_EVENT, { token: null });
         return null;
       },
       'Failed to remove token from localStorage:'
@@ -71,6 +87,7 @@ export const storage = {
     safeLocalStorageOperation(
       () => {
         localStorage.setItem(USER_KEY, JSON.stringify(user));
+        emitStorageEvent(STORAGE_USER_SET_EVENT, { user });
         return null;
       },
       'Failed to set user to localStorage:'
@@ -81,6 +98,7 @@ export const storage = {
     safeLocalStorageOperation(
       () => {
         localStorage.removeItem(USER_KEY);
+        emitStorageEvent(STORAGE_USER_SET_EVENT, { user: null });
         return null;
       },
       'Failed to remove user from localStorage:'
@@ -90,6 +108,14 @@ export const storage = {
   clear: (): void => {
     storage.removeToken();
     storage.removeUser();
+    emitStorageEvent(STORAGE_CLEARED_EVENT);
+  },
+
+  // 导出事件名称，供其他模块使用
+  events: {
+    STORAGE_CLEARED: STORAGE_CLEARED_EVENT,
+    TOKEN_SET: STORAGE_TOKEN_SET_EVENT,
+    USER_SET: STORAGE_USER_SET_EVENT,
   },
 };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSettings, FiSave, FiTrash2, FiCopy } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan, getImagePromptTemplate, saveImagePromptTemplate } from '../../services/ai';
@@ -46,6 +46,7 @@ export default function ImageGenerator({
   const [promptEditStates, setPromptEditStates] = useState<Record<number, boolean>>({});
   // 右侧提示词编辑器状态
   const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [promptTemplateType, setPromptTemplateType] = useState<'multi' | 'single'>('multi'); // 当前选中的页签类型
   const [promptTemplate, setPromptTemplate] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
@@ -53,6 +54,8 @@ export default function ImageGenerator({
   const processedImagePlanIdRef = useRef<string | null>(null);
   // 用于滚动到底部的ref（指向内容容器）
   const contentRef = useRef<HTMLDivElement>(null);
+  // 用于跟踪需要自动生成的任务索引
+  const autoGenerateTaskIndexRef = useRef<number | null>(null);
   // 图片模型选项列表
   const [imageModelOptions, setImageModelOptions] = useState<Array<{ value: string; label: string; providerId: number; model: string }>>([]);
   // 当前预览的图片URL
@@ -163,15 +166,20 @@ export default function ImageGenerator({
 
         const updatedPlans = [...prevPlans, newPlan];
 
-        // 添加对应的生成任务
-        setGenerationTasks((prevTasks) => [
-          ...prevTasks,
-          {
-            plan: newPlan,
-            status: 'pending' as const,
-            imageUrls: [],
-          },
-        ]);
+        // 添加对应的生成任务，标记为需要自动生成
+        setGenerationTasks((prevTasks) => {
+          const newTaskIndex = prevTasks.length;
+          // 标记需要自动生成
+          autoGenerateTaskIndexRef.current = newTaskIndex;
+          return [
+            ...prevTasks,
+            {
+              plan: newPlan,
+              status: 'pending' as const,
+              imageUrls: [],
+            },
+          ];
+        });
 
         // 保存更新后的图片规划
         if (onSaveImagePlans) {
@@ -197,12 +205,36 @@ export default function ImageGenerator({
     }
   }, [newImagePlan]); // 移除 onSaveImagePlans 依赖，避免无限循环
 
+  const loadPromptTemplate = async () => {
+    setLoadingTemplate(true);
+    try {
+      const template = await getImagePromptTemplate(promptTemplateType);
+      setPromptTemplate(template);
+    } catch (error: any) {
+      console.error('加载提示词模板失败:', error);
+      const status = error.response?.status;
+      
+      // 如果是 401 错误（JWT过期或无效），提示用户重新登录
+      if (status === 401) {
+        alert('登录已过期，请重新登录后再试');
+        // 可以选择跳转到登录页面
+        // window.location.href = '/login';
+      } else {
+        const errorMessage = getErrorMessage(error, '加载提示词模板失败');
+        alert(errorMessage);
+      }
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
   // 加载提示词模板
   useEffect(() => {
     if (showPromptEditor) {
       loadPromptTemplate();
     }
-  }, [showPromptEditor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPromptEditor, promptTemplateType]); // 当页签类型改变时也重新加载
 
   // 当正在生成提示词时，滚动到底部
   useEffect(() => {
@@ -219,6 +251,22 @@ export default function ImageGenerator({
     }
   }, [isGeneratingPrompt]);
 
+  // 自动生成新添加的单图任务
+  useEffect(() => {
+    if (autoGenerateTaskIndexRef.current !== null && generationTasks.length > 0) {
+      const taskIndex = autoGenerateTaskIndexRef.current;
+      // 检查任务是否存在且状态为 pending
+      if (generationTasks[taskIndex] && generationTasks[taskIndex].status === 'pending') {
+        // 重置 ref，避免重复生成
+        autoGenerateTaskIndexRef.current = null;
+        // 延迟执行，确保状态已更新
+        setTimeout(() => {
+          handleGenerateImage(taskIndex);
+        }, 50);
+      }
+    }
+  }, [generationTasks, handleGenerateImage]);
+
   // 计算正在生成的图片数量
   const generatingCount = useMemo(() => {
     const count = generationTasks.filter(task => task.status === 'generating').length;
@@ -231,23 +279,10 @@ export default function ImageGenerator({
     // 移除自动滚动逻辑，让用户保持在当前位置
   }, [generatingCount]);
 
-  const loadPromptTemplate = async () => {
-    setLoadingTemplate(true);
-    try {
-      const template = await getImagePromptTemplate();
-      setPromptTemplate(template);
-    } catch (error) {
-      console.error('加载提示词模板失败:', error);
-      alert('加载提示词模板失败');
-    } finally {
-      setLoadingTemplate(false);
-    }
-  };
-
   const handleSaveTemplate = async () => {
     setSavingTemplate(true);
     try {
-      await saveImagePromptTemplate(promptTemplate);
+      await saveImagePromptTemplate(promptTemplate, promptTemplateType);
       alert('提示词模板保存成功！');
     } catch (error) {
       console.error('保存提示词模板失败:', error);
@@ -255,6 +290,11 @@ export default function ImageGenerator({
     } finally {
       setSavingTemplate(false);
     }
+  };
+
+  // 切换页签时重新加载模板
+  const handleTabChange = (type: 'multi' | 'single') => {
+    setPromptTemplateType(type);
   };
 
   // 分析文章（流式版本）
@@ -400,7 +440,7 @@ export default function ImageGenerator({
   };
 
   // 生成单张图片
-  const handleGenerateImage = async (index: number) => {
+  const handleGenerateImage = useCallback(async (index: number) => {
     const task = generationTasks[index];
     if (!task || task.status === 'generating') return;
 
@@ -542,7 +582,7 @@ export default function ImageGenerator({
         return newTasks;
       });
     }
-  };
+  }, [generationTasks, imageModelOptions, onSaveImagePlans]);
 
   // 删除单个图片规划
   const handleDeleteImage = (index: number) => {
@@ -792,7 +832,7 @@ export default function ImageGenerator({
           </div>
 
           <div className="image-generator-content" ref={contentRef}>
-          {imagePlans.length === 0 ? (
+          {imagePlans.length === 0 && generationTasks.length === 0 && !newImagePlan && !isGeneratingPrompt ? (
             <div className="image-generator-empty">
               <p>点击下方按钮，AI将分析您的文章并生成图片规划</p>
               <button
@@ -1363,8 +1403,30 @@ export default function ImageGenerator({
                 </div>
               ) : (
                 <>
+                  {/* 页签切换 */}
+                  <div className="template-tabs">
+                    <button
+                      type="button"
+                      className={`tab-btn ${promptTemplateType === 'multi' ? 'active' : ''}`}
+                      onClick={() => handleTabChange('multi')}
+                    >
+                      全篇生多图
+                    </button>
+                    <button
+                      type="button"
+                      className={`tab-btn ${promptTemplateType === 'single' ? 'active' : ''}`}
+                      onClick={() => handleTabChange('single')}
+                    >
+                      选中文字生成单图
+                    </button>
+                  </div>
+                  
                   <div className="editor-info">
-                    <p>提示词模板用于生成图片规划。使用 <code>{'{{TITLE}}'}</code> 和 <code>{'{{CONTENT}}'}</code> 作为占位符，它们会被实际的文章标题和内容替换。</p>
+                    {promptTemplateType === 'multi' ? (
+                      <p>提示词模板用于生成图片规划。使用 <code>{'{{TITLE}}'}</code> 和 <code>{'{{CONTENT}}'}</code> 作为占位符，它们会被实际的文章标题和内容替换。</p>
+                    ) : (
+                      <p>提示词模板用于根据选中的文字生成单张图片。使用 <code>{'{{TEXT}}'}</code> 作为占位符，它会被实际选中的文字内容替换。</p>
+                    )}
                   </div>
                   <textarea
                     className="template-textarea"

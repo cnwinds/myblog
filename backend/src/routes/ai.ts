@@ -4,7 +4,7 @@ import { callLLM, callEmbedding, callImageGeneration, callLLMStream } from '../s
 import { IncrementalJSONParser } from '../utils/jsonStreamParser';
 import { SettingModel } from '../models/Setting';
 import { ProviderModel } from '../models/Provider';
-import { DEFAULT_IMAGE_PROMPT_TEMPLATE, replaceTemplatePlaceholders } from '../utils/imagePromptTemplate';
+import { DEFAULT_IMAGE_PROMPT_TEMPLATE, DEFAULT_SINGLE_IMAGE_PROMPT_TEMPLATE, replaceTemplatePlaceholders, replaceSingleImageTemplatePlaceholders } from '../utils/imagePromptTemplate';
 import { parseJSONFromText } from '../utils/jsonUtils';
 
 const router = Router();
@@ -466,6 +466,12 @@ ${text}
   }
 });
 
+// 获取单图提示词模板（从数据库读取，如果没有则使用默认值）
+function getSingleImagePromptTemplate(): string {
+  const template = SettingModel.get('image_prompt_template_single');
+  return template || DEFAULT_SINGLE_IMAGE_PROMPT_TEMPLATE;
+}
+
 // 根据选定文本生成图片提示词
 router.post('/generate-image-prompt', authenticateToken, async (req, res) => {
   try {
@@ -475,72 +481,9 @@ router.post('/generate-image-prompt', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    // 构建提示词，用于生成单个图片的提示词
-    const prompt = `你是一位专业的博客视觉内容策划师，擅长为文本内容生成图片生成提示词。
-
-# 任务
-请根据以下文本内容，生成一个用于图片生成的详细提示词。
-
-# 视觉风格规范（重要）
-## 基础设定
-- **图片类型**：信息图（Infographic）
-- **方向比例**：横版，16:9 或 4:3
-- **整体风格**：卡通风格、手绘风格
-
-## 背景与配色
-- 背景色：莫兰迪色系 / 奶油色 / 米白色 / 浅粉 / 薄荷绿等温柔色调
-- 配色柔和统一，符合博客审美
-
-## 文字风格
-- **必须使用手绘风格文字**
-- 大标题突出醒目，重点文字加粗放大
-- 可使用荧光笔划线效果强调关键词
-- 禁止使用写实风格字体
-
-## 装饰元素
-- 加入少量简洁的**卡通元素、图标或名人画像**，增强趣味性和视觉记忆
-- 可使用：emoji 风格图标、手绘贴纸、便签纸质感、对话气泡等
-- 如涉及敏感人物或版权内容，画一个风格相似的卡通替代形象，不要拒绝生成
-- **所有图像元素必须是手绘/卡通风格，禁止写实风格图画**
-
-## 排版原则
-- **以图为主，文字为辅**：图片应占据主要视觉空间，文字仅作为辅助说明，不要出现大段的文字
-- 信息精简，突出关键词与核心概念
-- 多留白，易于一眼抓住重点
-- 要点分条呈现，层次清晰
-
-# 输出格式
-请返回一个JSON对象，包含以下字段：
-{
-  "coreMessage": "这张图要传达的1句话核心",
-  "title": "主标题",
-  "subtitle": "副标题/要点（可选）",
-  "description": "补充说明（可选）",
-  "prompt": "完整的图片生成提示词，包含所有视觉风格要求",
-  "aspectRatio": "16:9"
-}
-
-**prompt 字段格式要求**：
-prompt 字段必须包含完整的图片生成提示词，格式如下：
-
-博客风格信息图，横版（16:9），卡通风格，手绘风格文字，[具体背景色]背景。
-
-[具体内容布局描述]
-
-加入简洁的卡通元素和图标增强趣味性和视觉记忆：[具体元素描述]
-
-整体风格：手绘、可爱、清新，信息精简，多留白，重点突出。以图为主，文字为辅，不要出现大段的文字。所有图像和文字均为手绘风格，无写实元素。
-
-**注意**：
-- aspectRatio 字段必须填写，表示图片的宽高比
-- 支持的格式：横版使用 "16:9" 或 "4:3"，竖版使用 "3:4" 或 "9:16"，方图使用 "1:1"
-- 默认使用 "16:9"（横版）
-- prompt 中的比例描述必须与 aspectRatio 字段一致
-
-# 需要生成提示词的文本内容：
-${text.trim()}
-
-请按照上述要求，输出JSON格式的对象。只返回JSON对象，不要包含其他文字说明。`;
+    // 使用单图提示词模板
+    const template = getSingleImagePromptTemplate();
+    const prompt = replaceSingleImageTemplatePlaceholders(template, text.trim());
 
     const response = await callLLM(prompt, { temperature: 0.7, maxTokens: 2000 });
     

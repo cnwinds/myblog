@@ -27,7 +27,9 @@ export function authenticateToken(
   jwt.verify(token, secret, (err, decoded) => {
     if (err) {
       console.error('JWT verification failed:', err.message);
-      return res.status(403).json({ error: 'Invalid or expired token' });
+      // JWT过期或无效时返回401未授权，而不是403禁止访问
+      // 401表示需要重新认证，403表示已认证但无权限
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
     req.userId = (decoded as { userId: number }).userId;
     next();
