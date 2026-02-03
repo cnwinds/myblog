@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { SettingModel } from '../models/Setting';
 import { ProviderModel } from '../models/Provider';
 import { DEFAULT_IMAGE_PROMPT_TEMPLATE, DEFAULT_SINGLE_IMAGE_PROMPT_TEMPLATE } from '../utils/imagePromptTemplate';
+import { DEFAULT_POLISH_PROMPT, DEFAULT_REWRITE_PROMPT } from '../utils/textPromptTemplate';
 import { createApiError, handleError } from '../utils/errorHandler';
 
 export async function getSettings(req: AuthRequest, res: Response): Promise<void> {
@@ -109,5 +110,47 @@ export async function saveImagePromptTemplate(req: AuthRequest, res: Response): 
     res.json({ message: 'Image prompt template saved successfully' });
   } catch (error) {
     handleError(res, error, '保存图片提示词模板失败');
+  }
+}
+
+// 获取文字处理提示词（润色/重写）
+export async function getTextProcessPrompt(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const mode = req.query.mode as string | undefined; // mode: 'polish' | 'rewrite'
+    if (mode !== 'polish' && mode !== 'rewrite') {
+      throw createApiError('Invalid mode', 400);
+    }
+
+    const settingKey = mode === 'polish' ? 'text_process_prompt_polish' : 'text_process_prompt_rewrite';
+    let prompt = SettingModel.get(settingKey);
+
+    if (!prompt) {
+      prompt = mode === 'polish' ? DEFAULT_POLISH_PROMPT : DEFAULT_REWRITE_PROMPT;
+      SettingModel.set(settingKey, prompt);
+    }
+
+    res.json({ prompt });
+  } catch (error) {
+    handleError(res, error, '获取文字处理提示词失败');
+  }
+}
+
+// 保存文字处理提示词（润色/重写）
+export async function saveTextProcessPrompt(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { prompt, mode } = req.body as { prompt?: string; mode?: string };
+    if (mode !== 'polish' && mode !== 'rewrite') {
+      throw createApiError('Invalid mode', 400);
+    }
+    if (typeof prompt !== 'string' || !prompt.trim()) {
+      throw createApiError('Prompt must be a non-empty string', 400);
+    }
+
+    const settingKey = mode === 'polish' ? 'text_process_prompt_polish' : 'text_process_prompt_rewrite';
+    SettingModel.set(settingKey, prompt);
+
+    res.json({ message: 'Text process prompt saved successfully' });
+  } catch (error) {
+    handleError(res, error, '保存文字处理提示词失败');
   }
 }

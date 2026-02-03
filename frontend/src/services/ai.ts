@@ -229,6 +229,23 @@ export async function saveImagePromptTemplate(template: string, type: 'multi' | 
 }
 
 /**
+ * 获取文字处理提示词（润色/重写）
+ */
+export async function getTextProcessPrompt(mode: 'polish' | 'rewrite'): Promise<string> {
+  const response = await api.get<{ prompt: string }>('/settings/text-process-prompt', {
+    params: { mode },
+  });
+  return response.data.prompt || '';
+}
+
+/**
+ * 保存文字处理提示词（润色/重写）
+ */
+export async function saveTextProcessPrompt(prompt: string, mode: 'polish' | 'rewrite'): Promise<void> {
+  await api.post('/settings/text-process-prompt', { prompt, mode });
+}
+
+/**
  * 处理文字内容（润色/重写统一接口）
  * @param text 要处理的文字
  * @param prompt 完整的处理提示词
@@ -256,8 +273,9 @@ export const PROMPTS = {
 2. 优化表达方式，使语言更加流畅自然
 3. 修正语法错误和标点符号
 4. 提升文字的可读性和吸引力
-5. 保持原文的语言风格（如果是正式文体，保持正式；如果是轻松文体，保持轻松）
-6. 如果原文是Markdown格式，请保持Markdown语法不变`,
+5. 使用口语化风格书写内容
+6. 保持原文的语言风格（如果是正式文体，保持正式；如果是轻松文体，保持轻松）
+7. 如果原文是Markdown格式，请保持Markdown语法不变`,
 
   rewrite: `你是一位专业的文字编辑专家。请对以下文字进行重写，使用符合整篇文章风格的表达方式。
 
@@ -266,7 +284,8 @@ export const PROMPTS = {
 2. 使用符合整篇文章其他部分的文风重写内容
 3. 可以改变句式结构、表达方式，让内容更贴合文章整体风格
 4. 保持信息完整性，不要遗漏关键信息
-5. 如果原文是Markdown格式，请保持Markdown语法不变`,
+5. 使用口语化风格书写内容
+6. 如果原文是Markdown格式，请保持Markdown语法不变`,
 };
 
 /**

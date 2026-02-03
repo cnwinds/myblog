@@ -7,7 +7,14 @@ import {
   updateProvider,
   deleteProvider,
 } from '../controllers/providerController';
-import { getSettings, saveSettings, getImagePromptTemplate, saveImagePromptTemplate } from '../controllers/settingsController';
+import {
+  getSettings,
+  saveSettings,
+  getImagePromptTemplate,
+  saveImagePromptTemplate,
+  getTextProcessPrompt,
+  saveTextProcessPrompt,
+} from '../controllers/settingsController';
 
 const router = Router();
 
@@ -26,5 +33,9 @@ router.post('/selection', authenticateToken, saveSettings);
 // 图片生成提示词模板管理
 router.get('/image-prompt-template', authenticateToken, getImagePromptTemplate);
 router.post('/image-prompt-template', authenticateToken, saveImagePromptTemplate);
+
+// 文字处理提示词管理（润色/重写）
+router.get('/text-process-prompt', authenticateToken, getTextProcessPrompt);
+router.post('/text-process-prompt', authenticateToken, saveTextProcessPrompt);
 
 export default router;

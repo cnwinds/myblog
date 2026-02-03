@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { processText } from '../../services/ai';
+import { useState, useEffect, useRef } from 'react';
+import { processText, getTextProcessPrompt, saveTextProcessPrompt } from '../../services/ai';
 import { getErrorMessage } from '../../utils/errorHandler';
 import './TextPolishDialog.css';
 
@@ -39,11 +39,28 @@ export default function TextProcessDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [editableText, setEditableText] = useState('');
+  const [basePrompt, setBasePrompt] = useState(defaultPrompt || '');
   const [customPrompt, setCustomPrompt] = useState(defaultPrompt || ''); // 初始值设为默认提示词
+  const [lastSavedPrompt, setLastSavedPrompt] = useState(defaultPrompt || '');
+  const promptEditedRef = useRef(false);
 
   const config = MODE_CONFIG[mode];
 
-  const handleProcess = async () => {
+  const persistPromptIfNeeded = async (promptOverride?: string) => {
+    const trimmedPrompt = (promptOverride ?? customPrompt).trim();
+    if (!trimmedPrompt || trimmedPrompt === lastSavedPrompt) {
+      return;
+    }
+    try {
+      await saveTextProcessPrompt(trimmedPrompt, mode);
+      setLastSavedPrompt(trimmedPrompt);
+      setBasePrompt(trimmedPrompt);
+    } catch (err) {
+      console.warn('保存提示词失败:', err);
+    }
+  };
+
+  const handleProcess = async (promptOverride?: string, shouldSavePrompt = true) => {
     if (!selectedText.trim()) {
       setError('没有选中的文字');
       return;
@@ -55,8 +72,11 @@ export default function TextProcessDialog({
     setEditableText('');
 
     try {
+      if (shouldSavePrompt) {
+        await persistPromptIfNeeded(promptOverride);
+      }
       // 如果用户输入了自定义提示词，使用自定义的；否则使用默认的
-      const prompt = customPrompt.trim() || defaultPrompt;
+      const prompt = (promptOverride ?? customPrompt).trim() || basePrompt;
       const result = await processText(selectedText, prompt, fullArticleContent);
       setProcessedText(result);
       setEditableText(result);
@@ -68,21 +88,53 @@ export default function TextProcessDialog({
   };
 
   useEffect(() => {
-    // 组件打开时自动调用处理
-    handleProcess();
+    let isActive = true;
+    promptEditedRef.current = false;
+
+    const loadPrompt = async () => {
+      let resolvedPrompt = defaultPrompt || '';
+      try {
+        const savedPrompt = await getTextProcessPrompt(mode);
+        if (savedPrompt.trim()) {
+          resolvedPrompt = savedPrompt;
+        }
+      } catch (err) {
+        console.warn('获取提示词失败:', err);
+      }
+
+      if (!isActive) {
+        return;
+      }
+
+      setBasePrompt(resolvedPrompt);
+      setLastSavedPrompt(resolvedPrompt);
+      if (!promptEditedRef.current) {
+        setCustomPrompt(resolvedPrompt);
+      }
+
+      await handleProcess(resolvedPrompt, false);
+    };
+
+    loadPrompt();
+
+    return () => {
+      isActive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mode, defaultPrompt]);
 
   const handleConfirm = () => {
     if (!editableText.trim()) {
       setError(`${config.actionLabel}后的内容不能为空`);
       return;
     }
+    void persistPromptIfNeeded();
     onReplace(editableText);
     onClose();
   };
 
   const handleCancel = () => {
+    void persistPromptIfNeeded();
     onClose();
   };
 
@@ -99,7 +151,10 @@ export default function TextProcessDialog({
             <textarea
               className="requirement-input"
               value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
+              onChange={(e) => {
+                promptEditedRef.current = true;
+                setCustomPrompt(e.target.value);
+              }}
               placeholder={config.placeholder}
               rows={4}
             />
