@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiX, FiEye, FiEyeOff, FiHelpCircle } from 'react-icons/fi';
 import { settingsService, Provider, CreateProviderData } from '../../services/settings';
 import { getErrorMessage } from '../../utils/errorHandler';
+import { detectImageProviderFormType, getImageProviderTypeLabel, ImageProviderFormType } from '../../utils/imageProvider';
 import Tooltip from './Tooltip';
 import './Settings.css';
 
@@ -14,6 +15,11 @@ const DEFAULT_CONFIG = {
   embedding: {
     apiBase: 'https://api.openai.com/v1',
     models: 'text-embedding-3-small, text-embedding-3-large',
+  },
+  imageOpenAI: {
+    apiBase: 'https://api.openai.com',
+    models: 'gpt-image-2',
+    name: '文生图(OpenAI)',
   },
   imageZhipu: {
     apiBase: 'https://open.bigmodel.cn/api/paas/v4/images/generations',
@@ -36,7 +42,7 @@ interface ProviderFormProps {
 
 export default function ProviderForm({ provider, onSubmit, onCancel, defaultType }: ProviderFormProps) {
   const [name, setName] = useState('');
-  const [type, setType] = useState<'llm' | 'embedding' | 'both' | 'image' | 'image-zhipu' | 'image-bailian'>(defaultType || 'llm');
+  const [type, setType] = useState<'llm' | 'embedding' | 'both' | 'image' | ImageProviderFormType>(defaultType || 'llm');
   const [apiKey, setApiKey] = useState('');
   const [apiBase, setApiBase] = useState('https://api.openai.com');
   const [llmModels, setLlmModels] = useState('');
@@ -65,9 +71,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
       }
       if (provider.type === 'image') {
         setImageModels(models.join(', '));
-        // 根据名称判断是智谱还是百炼，设置对应的类型值
-        const isZhipu = provider.name && (provider.name.includes('智谱') || provider.name.toLowerCase().includes('zhipu'));
-        setType(isZhipu ? 'image-zhipu' : 'image-bailian');
+        setType(detectImageProviderFormType(provider));
       }
     } else if (defaultType) {
       setType(defaultType);
@@ -83,10 +87,9 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
         setEmbeddingModels(DEFAULT_CONFIG.embedding.models);
         setApiBase(DEFAULT_CONFIG.llm.apiBase);
       } else if (defaultType === 'image') {
-        // 默认使用百炼
-        setType('image-bailian');
-        setImageModels(DEFAULT_CONFIG.imageBailian.models);
-        setApiBase(DEFAULT_CONFIG.imageBailian.apiBase);
+        setType('image-openai');
+        setImageModels(DEFAULT_CONFIG.imageOpenAI.models);
+        setApiBase(DEFAULT_CONFIG.imageOpenAI.apiBase);
       }
     } else {
       // 默认类型为 llm
@@ -102,6 +105,32 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
       .split(',')
       .map(m => m.trim())
       .filter(m => m.length > 0);
+  };
+
+  const applyImageProviderDefaults = (nextType: ImageProviderFormType) => {
+    if (nextType === 'image-openai') {
+      setImageModels(DEFAULT_CONFIG.imageOpenAI.models);
+      setApiBase(DEFAULT_CONFIG.imageOpenAI.apiBase);
+      if (!name) {
+        setName(DEFAULT_CONFIG.imageOpenAI.name);
+      }
+      return;
+    }
+
+    if (nextType === 'image-zhipu') {
+      setImageModels(DEFAULT_CONFIG.imageZhipu.models);
+      setApiBase(DEFAULT_CONFIG.imageZhipu.apiBase);
+      if (!name) {
+        setName(DEFAULT_CONFIG.imageZhipu.name);
+      }
+      return;
+    }
+
+    setImageModels(DEFAULT_CONFIG.imageBailian.models);
+    setApiBase(DEFAULT_CONFIG.imageBailian.apiBase);
+    if (!name) {
+      setName(DEFAULT_CONFIG.imageBailian.name);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,22 +202,33 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
               onChange={(e) => {
                 const newName = e.target.value;
                 setName(newName);
-                // 当类型为image且名称变化时，自动调整配置
-                if ((type === 'image-zhipu' || type === 'image-bailian') && !provider) {
-                  const isZhipu = newName.includes('智谱') || newName.toLowerCase().includes('zhipu');
-                  if (isZhipu && type !== 'image-zhipu') {
-                    setType('image-zhipu');
-                    setApiBase(DEFAULT_CONFIG.imageZhipu.apiBase);
-                    if (!imageModels || imageModels === '') {
-                      setImageModels(DEFAULT_CONFIG.imageZhipu.models);
+                if ((type === 'image-openai' || type === 'image-zhipu' || type === 'image-bailian') && !provider) {
+                  const inferredType = detectImageProviderFormType({
+                    name: newName,
+                    apiBase,
+                    models: parseModels(imageModels),
+                  });
+                  if (inferredType !== 'image-bailian' && inferredType !== type) {
+                    setType(inferredType);
+                    if (!imageModels) {
+                      applyImageProviderDefaults(inferredType);
+                    } else if (inferredType === 'image-openai') {
+                      setApiBase(DEFAULT_CONFIG.imageOpenAI.apiBase);
+                    } else if (inferredType === 'image-zhipu') {
+                      setApiBase(DEFAULT_CONFIG.imageZhipu.apiBase);
                     }
-                  } else if (!isZhipu && type !== 'image-bailian') {
-                    setType('image-bailian');
-                    setApiBase(DEFAULT_CONFIG.imageBailian.apiBase);
                   }
                 }
               }}
-              placeholder={type === 'image-zhipu' ? `例如: ${DEFAULT_CONFIG.imageZhipu.name}` : type === 'image-bailian' ? `例如: ${DEFAULT_CONFIG.imageBailian.name}` : '例如: OpenAI'}
+              placeholder={
+                type === 'image-openai'
+                  ? `例如: ${DEFAULT_CONFIG.imageOpenAI.name}`
+                  : type === 'image-zhipu'
+                    ? `例如: ${DEFAULT_CONFIG.imageZhipu.name}`
+                    : type === 'image-bailian'
+                      ? `例如: ${DEFAULT_CONFIG.imageBailian.name}`
+                      : '例如: OpenAI'
+              }
               required
               disabled={loading}
             />
@@ -201,7 +241,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
             <select
               value={type}
               onChange={(e) => {
-                const newType = e.target.value as 'llm' | 'embedding' | 'both' | 'image' | 'image-zhipu' | 'image-bailian';
+                const newType = e.target.value as 'llm' | 'embedding' | 'both' | 'image' | ImageProviderFormType;
                 setType(newType);
                 // 切换类型时清空不相关的模型字段并设置默认值
                 if (newType === 'llm') {
@@ -214,24 +254,18 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                   setImageModels('');
                   setEmbeddingModels(DEFAULT_CONFIG.embedding.models);
                   setApiBase(DEFAULT_CONFIG.embedding.apiBase);
+                } else if (newType === 'image-openai') {
+                  setLlmModels('');
+                  setEmbeddingModels('');
+                  applyImageProviderDefaults('image-openai');
                 } else if (newType === 'image-zhipu') {
                   setLlmModels('');
                   setEmbeddingModels('');
-                  setImageModels(DEFAULT_CONFIG.imageZhipu.models);
-                  setApiBase(DEFAULT_CONFIG.imageZhipu.apiBase);
-                  // 如果名称为空，自动设置名称
-                  if (!name) {
-                    setName(DEFAULT_CONFIG.imageZhipu.name);
-                  }
+                  applyImageProviderDefaults('image-zhipu');
                 } else if (newType === 'image-bailian') {
                   setLlmModels('');
                   setEmbeddingModels('');
-                  setImageModels(DEFAULT_CONFIG.imageBailian.models);
-                  setApiBase(DEFAULT_CONFIG.imageBailian.apiBase);
-                  // 如果名称为空，自动设置名称
-                  if (!name) {
-                    setName(DEFAULT_CONFIG.imageBailian.name);
-                  }
+                  applyImageProviderDefaults('image-bailian');
                 } else if (newType === 'both') {
                   setImageModels('');
                   setLlmModels(DEFAULT_CONFIG.llm.models);
@@ -246,9 +280,10 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                 // 如果正在编辑现有提供商，根据提供商的类型限制选项
                 if (provider) {
                   if (provider.type === 'image') {
-                    // 图片提供商只能选择图片类型，显示两个选项
+                    // 图片提供商只能选择图片类型
                     return (
                       <>
+                        <option value="image-openai">{getImageProviderTypeLabel('image-openai')}</option>
                         <option value="image-bailian">文生图(百炼)</option>
                         <option value="image-zhipu">文生图(智谱)</option>
                       </>
@@ -267,9 +302,10 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                 
                 // 新建提供商时，根据 defaultType 决定显示哪些选项
                 if (defaultType === 'image') {
-                  // 从文生图提供商管理页面添加时，显示文生图选项（智谱和百炼）
+                  // 从文生图提供商管理页面添加时，显示文生图选项
                   return (
                     <>
+                      <option value="image-openai">{getImageProviderTypeLabel('image-openai')}</option>
                       <option value="image-bailian">文生图(百炼)</option>
                       <option value="image-zhipu">文生图(智谱)</option>
                     </>
@@ -293,6 +329,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
                       <option value="llm">大模型 OpenAI</option>
                       <option value="embedding">向量模型 OpenAI</option>
                       <option value="both">大模型+向量模型 OpenAI</option>
+                      <option value="image-openai">{getImageProviderTypeLabel('image-openai')}</option>
                       <option value="image-bailian">文生图(百炼)</option>
                       <option value="image-zhipu">文生图(智谱)</option>
                     </>
@@ -339,7 +376,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
               disabled={loading}
             />
             <small className="form-hint">
-              请输入基础URL（不包含 /v1），例如：https://api.openai.com
+              OpenAI 可填写 <code>https://api.openai.com</code>，也支持为文生图提供商直接填写完整接口地址。
             </small>
           </div>
 
@@ -387,7 +424,7 @@ export default function ProviderForm({ provider, onSubmit, onCancel, defaultType
             </div>
           )}
 
-          {(type === 'image-zhipu' || type === 'image-bailian') && (
+          {(type === 'image-openai' || type === 'image-zhipu' || type === 'image-bailian') && (
             <div className="form-group">
               <label>
                 <span className="required">*</span> 文生图模型名称

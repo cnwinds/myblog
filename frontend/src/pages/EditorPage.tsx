@@ -16,6 +16,16 @@ interface ArticleFormData {
   imagePlans: ImagePlan[] | null;
 }
 
+function createArticleSnapshot(data: ArticleFormData): string {
+  return JSON.stringify({
+    title: data.title.trim(),
+    content: data.content,
+    category: data.category,
+    excerpt: data.excerpt.trim(),
+    imagePlans: data.imagePlans || null,
+  });
+}
+
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
@@ -31,12 +41,7 @@ export default function EditorPage() {
   const [autoSaving, setAutoSaving] = useState(false);
 
   // 使用 ref 来跟踪自动保存
-  const lastSavedRef = useRef<Omit<ArticleFormData, 'imagePlans'>>({
-    title: '',
-    content: '',
-    category: 'blog',
-    excerpt: '',
-  });
+  const lastSavedSnapshotRef = useRef<string>('');
   const currentValuesRef = useRef<ArticleFormData & { articleId: number | null }>({
     title: '',
     content: '',
@@ -46,6 +51,8 @@ export default function EditorPage() {
     articleId: null,
   });
   const isPublishingRef = useRef<boolean>(false); // 标记是否正在发布
+  const isCurrentArticlePublishedRef = useRef<boolean>(false);
+  const autoSavingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -68,6 +75,57 @@ export default function EditorPage() {
       articleId: currentArticleId,
     };
   }, [title, content, category, excerpt, imagePlans, currentArticleId]);
+
+  const autoSaveDraft = useCallback(async () => {
+    if (isPublishingRef.current || isCurrentArticlePublishedRef.current || autoSavingRef.current) {
+      return;
+    }
+
+    const values = currentValuesRef.current;
+    if (!values.title.trim() && !values.content.trim()) {
+      return;
+    }
+
+    const currentSnapshot = createArticleSnapshot(values);
+    if (currentSnapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
+    autoSavingRef.current = true;
+    setAutoSaving(true);
+
+    try {
+      const articleData = {
+        title: values.title.trim() || '未命名文章',
+        content: values.content,
+        category: values.category,
+        excerpt: values.excerpt || undefined,
+        imagePlans: values.imagePlans || undefined,
+        published: false as const,
+      };
+
+      const articleId = values.articleId;
+
+      if (articleId) {
+        await articleService.updateArticle(articleId, articleData);
+      } else {
+        const newArticle = await articleService.createArticle(articleData);
+        const newArticleId = newArticle.id;
+
+        setCurrentArticleId(newArticleId);
+        currentValuesRef.current.articleId = newArticleId;
+        window.history.replaceState(null, '', `/edit/${newArticleId}`);
+      }
+
+      lastSavedSnapshotRef.current = currentSnapshot;
+      isCurrentArticlePublishedRef.current = false;
+    } catch (err) {
+      console.error('自动保存草稿失败:', err);
+    } finally {
+      autoSavingRef.current = false;
+      setAutoSaving(false);
+    }
+  }, []);
 
   // 每分钟自动保存草稿到数据库
   useEffect(() => {
@@ -93,7 +151,7 @@ export default function EditorPage() {
     return () => {
       clearInterval(intervalId);
     };
-  }, []); // 空依赖数组，定时器只创建一次
+  }, [autoSaveDraft]);
 
   // 页面卸载时保存草稿
   useEffect(() => {
@@ -125,15 +183,17 @@ export default function EditorPage() {
         });
       }
     };
-  }, []);
+  }, [autoSaveDraft]);
 
   const loadArticle = async (articleId: number) => {
     setLoading(true);
     try {
       let article;
+      let isPublishedArticle = false;
       try {
         // 先尝试获取已发布的文章
         article = await articleService.getArticle(articleId);
+        isPublishedArticle = article.published === 1;
       } catch (err) {
         // 如果获取失败，可能是未发布的文章，尝试从未发布列表中查找
         const unpublishedArticles = await articleService.getUnpublishedArticles();
@@ -142,31 +202,33 @@ export default function EditorPage() {
           throw new Error('文章不存在或无权访问');
         }
       }
+
+      let parsedImagePlans: ImagePlan[] | null = null;
+      if (article.imagePlans) {
+        try {
+          const parsed = JSON.parse(article.imagePlans);
+          parsedImagePlans = Array.isArray(parsed) ? parsed : null;
+        } catch (err) {
+          console.warn('Failed to parse imagePlans:', err);
+        }
+      }
       
       setTitle(article.title);
       setContent(article.content);
       setExcerpt(article.excerpt || '');
       setCategory((article.category as Category) || 'blog');
+      setImagePlans(parsedImagePlans);
       
-      // 更新最后保存的内容
-      lastSavedRef.current = {
+      const loadedFormData: ArticleFormData = {
         title: article.title,
         content: article.content,
         category: (article.category as Category) || 'blog',
         excerpt: article.excerpt || '',
+        imagePlans: parsedImagePlans,
       };
-      
-      if (article.imagePlans) {
-        try {
-          const parsed = JSON.parse(article.imagePlans);
-          setImagePlans(Array.isArray(parsed) ? parsed : null);
-        } catch (err) {
-          console.warn('Failed to parse imagePlans:', err);
-          setImagePlans(null);
-        }
-      } else {
-        setImagePlans(null);
-      }
+
+      lastSavedSnapshotRef.current = createArticleSnapshot(loadedFormData);
+      isCurrentArticlePublishedRef.current = isPublishedArticle;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '加载文章失败';
       alert(errorMessage);
@@ -177,85 +239,24 @@ export default function EditorPage() {
     }
   };
 
-  // 自动保存草稿到数据库（每分钟执行一次）
-  const autoSaveDraft = async () => {
-    // 如果正在发布，不执行自动保存
-    if (isPublishingRef.current) {
-      return;
-    }
-
-    // 防止重复保存
-    if (autoSaving) {
-      return;
-    }
-
-    // 从 ref 获取最新值，确保使用最新的状态
-    const values = currentValuesRef.current;
-
-    // 如果标题和内容都为空，不保存
-    if (!values.title.trim() && !values.content.trim()) {
-      return;
-    }
-
-    setAutoSaving(true);
-    try {
-      const articleData = {
-        title: values.title.trim() || '未命名文章',
-        content: values.content,
-        category: values.category,
-        excerpt: values.excerpt || undefined,
-        imagePlans: values.imagePlans || undefined,
-        published: false, // 自动保存始终为草稿
-      };
-
-      // 使用 ref 中的 articleId，确保获取最新的 ID
-      const articleId = values.articleId;
-
-      if (articleId) {
-        // 检查文章当前状态
-        try {
-          // 先尝试获取已发布的文章
-          const publishedArticle = await articleService.getArticle(articleId);
-          // 如果文章已经发布，不自动保存（避免覆盖已发布的内容）
-          if (publishedArticle && publishedArticle.published === 1) {
-            return;
-          }
-        } catch (err) {
-          // 如果获取失败，说明是草稿，继续保存
-        }
-
-        // 更新草稿（只更新内容，published 保持为 false）
-        await articleService.updateArticle(articleId, articleData);
-      } else {
-        // 创建新草稿
-        const newArticle = await articleService.createArticle(articleData);
-        const newArticleId = newArticle.id;
-        
-        // 更新所有相关的 ID 引用
-        setCurrentArticleId(newArticleId);
-        currentValuesRef.current.articleId = newArticleId;
-        
-        // 更新URL但不刷新页面
-        window.history.replaceState(null, '', `/edit/${newArticleId}`);
-      }
-
-      console.log('草稿已自动保存');
-    } catch (err) {
-      console.error('自动保存草稿失败:', err);
-      // 自动保存失败不显示错误提示，避免打扰用户
-    } finally {
-      setAutoSaving(false);
-    }
-  };
-
   const handleSaveImagePlans = async (plans: ImagePlan[]) => {
-    if (!currentArticleId) return;
+    setImagePlans(plans);
+
+    const nextValues = {
+      ...currentValuesRef.current,
+      imagePlans: plans,
+    };
+    currentValuesRef.current = nextValues;
+
+    if (!currentArticleId) {
+      return;
+    }
 
     try {
       await articleService.updateArticle(currentArticleId, {
         imagePlans: plans
       });
-      setImagePlans(plans);
+      lastSavedSnapshotRef.current = createArticleSnapshot(nextValues);
     } catch (error) {
       console.error('Failed to save image plans:', error);
     }
@@ -296,13 +297,14 @@ export default function EditorPage() {
         window.history.replaceState(null, '', `/edit/${newArticle.id}`);
       }
 
-      // 更新最后保存的内容
-      lastSavedRef.current = {
+      lastSavedSnapshotRef.current = createArticleSnapshot({
         title,
         content,
         category,
         excerpt,
-      };
+        imagePlans,
+      });
+      isCurrentArticlePublishedRef.current = false;
 
       alert('草稿已保存');
     } catch (err) {
@@ -349,6 +351,14 @@ export default function EditorPage() {
       if (publishedArticleId) {
         currentValuesRef.current.articleId = publishedArticleId;
       }
+      lastSavedSnapshotRef.current = createArticleSnapshot({
+        title,
+        content,
+        category,
+        excerpt,
+        imagePlans,
+      });
+      isCurrentArticlePublishedRef.current = true;
 
       // 根据文章分类导航到对应页面
       const targetPath = category === 'lab' ? '/lab' : '/';
@@ -415,7 +425,6 @@ export default function EditorPage() {
               </button>
               <button
                 type="submit"
-                onClick={handlePublish}
                 disabled={saving}
                 className="btn btn-primary"
               >

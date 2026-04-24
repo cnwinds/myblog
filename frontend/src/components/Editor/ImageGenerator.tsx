@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiImage, FiX, FiCheck, FiLoader, FiRefreshCw, FiEdit2, FiEye, FiSettings, FiSave, FiTrash2, FiCopy } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import { analyzeArticleForImagesStream, generateImage, findImagePositions, ImagePlan, getImagePromptTemplate, saveImagePromptTemplate } from '../../services/ai';
@@ -256,7 +256,6 @@ export default function ImageGenerator({
     const task = generationTasks[index];
     if (!task || task.status === 'generating') return;
 
-    console.log(`[DEBUG] handleGenerateImage(${index}): 开始生成，当前状态:`, task.status);
     setGenerationTasks((prev) => {
       const newTasks = [...prev];
       newTasks[index] = {
@@ -265,7 +264,6 @@ export default function ImageGenerator({
         error: undefined, // 清除旧的错误信息
         // 保留已有的图片，不删除
       };
-      console.log(`[DEBUG] handleGenerateImage(${index}): 状态已设置为 generating`);
       return newTasks;
     });
 
@@ -411,18 +409,6 @@ export default function ImageGenerator({
       }
     }
   }, [generationTasks, handleGenerateImage]);
-
-  // 计算正在生成的图片数量
-  const generatingCount = useMemo(() => {
-    const count = generationTasks.filter(task => task.status === 'generating').length;
-    console.log('[DEBUG] generatingCount 更新:', count, '总任务数:', generationTasks.length);
-    return count;
-  }, [generationTasks]);
-
-  // 当有图片正在生成时，不自动滚动
-  useEffect(() => {
-    // 移除自动滚动逻辑，让用户保持在当前位置
-  }, [generatingCount]);
 
   const handleSaveTemplate = async () => {
     setSavingTemplate(true);
@@ -575,13 +561,11 @@ export default function ImageGenerator({
 
   // 重新生成图片规划
   const handleRegenerate = async () => {
-    console.log('[DEBUG] handleRegenerate: 开始重新生成');
     // 清除当前的图片规划和生成任务
     setImagePlans([]);
     setGenerationTasks([]);
     // 重新分析文章
     await handleAnalyze();
-    console.log('[DEBUG] handleRegenerate: 重新生成完成');
   };
 
   // 删除单个图片规划
@@ -619,24 +603,17 @@ export default function ImageGenerator({
 
   // 生成所有图片
   const handleGenerateAll = async () => {
-    console.log('[DEBUG] handleGenerateAll: 开始批量生成');
-    console.log('[DEBUG] handleGenerateAll: 当前任务列表:', generationTasks.map(t => ({ index: t.plan.index, status: t.status })));
-
     const pendingTasks = generationTasks.filter(t => t.status === 'pending');
-    console.log('[DEBUG] handleGenerateAll: 待生成任务数:', pendingTasks.length);
 
     if (pendingTasks.length === 0) {
-      console.log('[DEBUG] handleGenerateAll: 没有待生成的任务，直接返回');
       return;
     }
 
     setGenerating(true);
-    console.log('[DEBUG] handleGenerateAll: generating 状态已设置为 true');
     try {
       // 依次生成所有待生成的图片
       for (let i = 0; i < generationTasks.length; i++) {
         if (generationTasks[i].status === 'pending') {
-          console.log(`[DEBUG] handleGenerateAll: 开始生成第 ${i} 张图片`);
           await handleGenerateImage(i);
           // 添加短暂延迟，避免API限流
           await new Promise((resolve) => setTimeout(resolve, 500));
@@ -661,7 +638,6 @@ export default function ImageGenerator({
         });
       }
     } finally {
-      console.log('[DEBUG] handleGenerateAll: 批量生成完成，设置 generating 为 false');
       setGenerating(false);
     }
   };
@@ -751,14 +727,12 @@ export default function ImageGenerator({
     try {
       // 一次性调用大模型判断所有图片的插入位置
       const imageCoreMessages = allImages.map((img) => img.coreMessage);
-      console.log('正在批量判断图片位置，共', imageCoreMessages.length, '张图片');
-      
+
       let positionsResults: Array<{ position: string; reason: string }> = [];
       
       try {
         const response = await findImagePositions(content, imageCoreMessages);
         positionsResults = response.positions;
-        console.log('批量位置判断结果:', positionsResults);
       } catch (error) {
         console.error('批量判断图片位置失败:', error);
         console.error('错误详情:', getErrorDetails(error));
@@ -780,8 +754,6 @@ export default function ImageGenerator({
         alert('没有可插入的图片');
         return;
       }
-
-      console.log('准备插入图片:', imagesToInsert);
 
       // 调用插入函数（这是同步函数，不需要try-catch，但需要确保它不会抛出错误）
       onInsertImages(imagesToInsert);

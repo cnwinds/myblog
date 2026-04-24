@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiTrash2, FiInfo } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { settingsService, Provider } from '../../services/settings';
+import { detectImageProviderFormType, getImageProviderTypeLabel } from '../../utils/imageProvider';
 import ProviderForm from './ProviderForm';
 import './Settings.css';
 
@@ -119,11 +120,7 @@ export default function ImageProviderManagement() {
                 providers.map((provider) => (
                   <tr key={provider.id}>
                     <td>{provider.name}</td>
-                    <td>
-                      {provider.name && (provider.name.includes('智谱') || provider.name.toLowerCase().includes('zhipu'))
-                        ? '文生图(智谱)'
-                        : '文生图(百炼)'}
-                    </td>
+                    <td>{getImageProviderTypeLabel(detectImageProviderFormType(provider))}</td>
                     <td>
                       {provider.models.length > 0 ? (
                         <div className="models-list">

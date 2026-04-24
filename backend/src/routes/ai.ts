@@ -4,6 +4,7 @@ import { callLLM, callEmbedding, callImageGeneration, callLLMStream } from '../s
 import { IncrementalJSONParser } from '../utils/jsonStreamParser';
 import { SettingModel } from '../models/Setting';
 import { ProviderModel } from '../models/Provider';
+import { detectImageProviderKind } from '../utils/imageProvider';
 import { DEFAULT_IMAGE_PROMPT_TEMPLATE, DEFAULT_SINGLE_IMAGE_PROMPT_TEMPLATE, replaceTemplatePlaceholders, replaceSingleImageTemplatePlaceholders } from '../utils/imagePromptTemplate';
 import { parseJSONFromText } from '../utils/jsonUtils';
 
@@ -52,7 +53,7 @@ router.post('/embedding', authenticateToken, async (req, res) => {
 });
 
 // 登录用户可以访问AI功能
-// 调用文生图模型生成图片（支持智谱AI和百炼接口）
+// 调用文生图模型生成图片（支持 OpenAI、智谱AI 和百炼接口）
 router.post('/image', authenticateToken, async (req, res) => {
   try {
     const { prompt, width, height, aspectRatio, n, model } = req.body;
@@ -92,7 +93,7 @@ router.post('/image', authenticateToken, async (req, res) => {
     let finalHeight = height;
     
     if (aspectRatio && !width && !height) {
-      const dimensions = convertAspectRatioToDimensions(aspectRatio, provider.name);
+      const dimensions = convertAspectRatioToDimensions(aspectRatio, provider.name, provider.apiBase);
       finalWidth = dimensions.width;
       finalHeight = dimensions.height;
     }
@@ -113,16 +114,17 @@ router.post('/image', authenticateToken, async (req, res) => {
 
 /**
  * 将宽高比转换为具体的宽高尺寸
- * 支持智谱AI和百炼（阿里云）两种提供商的推荐尺寸
+ * 支持 OpenAI、智谱AI 和百炼（阿里云）提供商的推荐尺寸
  */
 function convertAspectRatioToDimensions(
   aspectRatio: string,
-  providerName?: string
+  providerName?: string,
+  providerApiBase?: string
 ): { width: number; height: number } {
   const ratio = aspectRatio.trim().toLowerCase();
-  const isZhipuAI = providerName && (providerName.includes('智谱') || providerName.includes('zhipu'));
+  const kind = detectImageProviderKind({ name: providerName, apiBase: providerApiBase });
   
-  if (isZhipuAI) {
+  if (kind === 'zhipu') {
     // 智谱AI推荐尺寸（根据文档）
     switch (ratio) {
       case '3:4':
@@ -153,6 +155,31 @@ function convertAspectRatioToDimensions(
           };
         }
         return { width: 1280, height: 1280 };
+    }
+  } else if (kind === 'openai') {
+    switch (ratio) {
+      case '3:4':
+      case '9:16':
+        return { width: 1024, height: 1536 };
+      case '16:9':
+      case '4:3':
+        return { width: 1536, height: 1024 };
+      case '1:1':
+        return { width: 1024, height: 1024 };
+      default: {
+        const match = ratio.match(/^(\d+):(\d+)$/);
+        if (match) {
+          const w = parseInt(match[1], 10);
+          const h = parseInt(match[2], 10);
+          if (w === h) {
+            return { width: 1024, height: 1024 };
+          }
+          return w > h
+            ? { width: 1536, height: 1024 }
+            : { width: 1024, height: 1536 };
+        }
+        return { width: 1024, height: 1024 };
+      }
     }
   } else {
     // 百炼（阿里云）推荐尺寸

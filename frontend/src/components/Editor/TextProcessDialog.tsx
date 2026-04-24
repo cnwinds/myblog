@@ -173,7 +173,9 @@ export default function TextProcessDialog({
                 <h4>{config.actionLabel}后</h4>
                 {!loading && (
                   <button
-                    onClick={handleProcess}
+                    onClick={() => {
+                      void handleProcess();
+                    }}
                     className="btn btn-secondary refresh-btn"
                     title={`重新${config.actionLabel}`}
                     disabled={loading}

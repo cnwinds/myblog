@@ -1,5 +1,6 @@
 import { SettingModel } from '../models/Setting';
 import { ProviderModel, Provider } from '../models/Provider';
+import { buildImageApiUrl, detectImageProviderKind } from '../utils/imageProvider';
 
 export interface LLMResponse {
   content: string;
@@ -215,34 +216,25 @@ export async function callEmbedding(text: string): Promise<EmbeddingResponse> {
 }
 
 /**
- * 构建图片生成API的URL
- * 支持完整URL或基础域名两种配置方式
- */
-function buildImageApiUrl(apiBase: string, providerName?: string): string {
-  // 智谱AI使用固定URL
-  if (providerName && (providerName.includes('智谱') || providerName.includes('zhipu'))) {
-    return 'https://open.bigmodel.cn/api/paas/v4/images/generations';
-  }
-  
-  // 百炼（阿里云）API
-  const base = apiBase || 'https://dashscope.aliyuncs.com';
-  if (base.includes('/api/v1/services/aigc/')) return base;
-  
-  try {
-    const url = new URL(base);
-    return `${url.protocol}//${url.host}/api/v1/services/aigc/multimodal-generation/generation`;
-  } catch {
-    return `${base.replace(/\/.*$/, '').replace(/\/$/, '')}/api/v1/services/aigc/multimodal-generation/generation`;
-  }
-}
-
-/**
  * 解析图片生成API响应
- * 支持多种格式：智谱AI、百炼（新API）、百炼（旧API）
+ * 支持多种格式：OpenAI、智谱AI、百炼（新API）、百炼（旧API）
  */
-function parseImageResponse(data: any, providerName?: string): ImageGenerationResponse {
+function parseImageResponse(data: any, provider: Provider): ImageGenerationResponse {
+  const kind = detectImageProviderKind(provider);
+
+  if (kind === 'openai') {
+    const image = data.data?.[0];
+    if (image?.url || image?.b64_json) {
+      return {
+        imageUrl: image.url || '',
+        imageBase64: image.b64_json,
+      };
+    }
+    throw new Error('Invalid OpenAI image response format: ' + JSON.stringify(data).substring(0, 200));
+  }
+
   // 智谱AI响应格式: { created, data: [{ url }] }
-  if (providerName && (providerName.includes('智谱') || providerName.includes('zhipu'))) {
+  if (kind === 'zhipu') {
     if (data.data?.[0]?.url) {
       return { imageUrl: data.data[0].url };
     }
@@ -279,7 +271,7 @@ function parseImageResponse(data: any, providerName?: string): ImageGenerationRe
 
 /**
  * 调用文生图模型生成图片
- * 支持智谱AI和百炼（阿里云）接口
+ * 支持 OpenAI、智谱AI 和百炼（阿里云）接口
  */
 export async function callImageGeneration(
   prompt: string,
@@ -308,12 +300,12 @@ export async function callImageGeneration(
   
   if (!provider.apiKey) throw new Error('API key not configured');
 
-  const isZhipuAI = provider.name && (provider.name.includes('智谱') || provider.name.toLowerCase().includes('zhipu'));
-  const apiUrl = buildImageApiUrl(provider.apiBase || '', provider.name);
+  const kind = detectImageProviderKind(provider);
+  const apiUrl = buildImageApiUrl(provider.apiBase || '', kind);
 
   let requestBody: any;
   
-  if (isZhipuAI) {
+  if (kind === 'zhipu') {
     // 智谱AI API格式
     const size = options?.width && options?.height 
       ? `${options.width}x${options.height}` 
@@ -325,6 +317,17 @@ export async function callImageGeneration(
       size,
       quality: 'hd', // 默认高质量
       watermark_enabled: true, // 默认启用水印
+    };
+  } else if (kind === 'openai') {
+    const size = options?.width && options?.height
+      ? `${options.width}x${options.height}`
+      : '1024x1024';
+
+    requestBody = {
+      model,
+      prompt,
+      size,
+      n: options?.n || 1,
     };
   } else {
     // 百炼（阿里云）API格式
@@ -360,5 +363,5 @@ export async function callImageGeneration(
     throw new Error(errorMessage);
   }
 
-  return parseImageResponse(await response.json(), provider.name);
+  return parseImageResponse(await response.json(), provider);
 }

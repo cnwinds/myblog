@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, type MouseEvent as ReactMouseEvent } from 'react';
 import { FiImage, FiZap, FiDownload } from 'react-icons/fi';
 import MDEditor from '@uiw/react-md-editor';
 import ImageUpload from './ImageUpload';
@@ -45,6 +45,44 @@ export default function MarkdownEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const { isAuthenticated } = useAuth();
   const { theme } = useTheme();
+
+  const handleEditorContextMenu = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null;
+    if (!textarea) return;
+
+    const target = e.target as Node;
+    if (target !== textarea && !textarea.contains(target)) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    if (start === end) {
+      setShowContextMenu(false);
+      return;
+    }
+
+    const nextSelectedText = textarea.value.substring(start, end).trim();
+    if (!nextSelectedText) {
+      setShowContextMenu(false);
+      return;
+    }
+
+    setSelectedText(nextSelectedText);
+    setSelectedTextRange({ start, end });
+    setContextMenuPosition({
+      x: e.clientX,
+      y: e.clientY,
+    });
+    setShowContextMenu(true);
+  }, []);
 
   const handleInsertImage = (markdown: string) => {
     // 获取当前光标位置
@@ -373,98 +411,6 @@ export default function MarkdownEditor({
     };
   }, [value, onChange, isAuthenticated]);
 
-  // 处理鼠标右键，显示上下文菜单
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      // 找到 textarea 元素
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      if (!textarea) return;
-
-      // 检查点击目标是否在textarea或其父元素内
-      const target = e.target as Node;
-      if (target !== textarea && !textarea.contains(target)) {
-        return;
-      }
-
-      // 阻止默认的右键菜单
-      e.preventDefault();
-      e.stopPropagation();
-
-      // 获取选中的文本
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-
-      if (start === end) {
-        // 没有选中文本，不显示菜单
-        setShowContextMenu(false);
-        return;
-      }
-
-      // 获取选中的文本内容
-      const selectedText = textarea.value.substring(start, end).trim();
-      if (!selectedText) {
-        setShowContextMenu(false);
-        return;
-      }
-
-      // 设置选中的文本和范围
-      setSelectedText(selectedText);
-      setSelectedTextRange({ start, end });
-
-      // 使用鼠标右键位置来显示菜单
-      setContextMenuPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
-      setShowContextMenu(true);
-    };
-
-    // 定期检查textarea是否存在并绑定事件
-    const checkAndBind = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      if (textarea) {
-        // 直接在textarea上绑定事件
-        textarea.addEventListener('contextmenu', handleContextMenu, true);
-        return true;
-      }
-      return false;
-    };
-
-    // 立即尝试绑定
-    if (!checkAndBind()) {
-      // 如果textarea还不存在，延迟绑定
-      const timer = setInterval(() => {
-        if (checkAndBind()) {
-          clearInterval(timer);
-        }
-      }, 100);
-
-      // 10秒后停止尝试
-      setTimeout(() => clearInterval(timer), 10000);
-
-      return () => {
-        clearInterval(timer);
-        const textarea = containerRef.current?.querySelector('textarea') as HTMLTextAreaElement;
-        if (textarea) {
-          textarea.removeEventListener('contextmenu', handleContextMenu, true);
-        }
-      };
-    }
-
-    return () => {
-      const textarea = containerRef.current?.querySelector('textarea') as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.removeEventListener('contextmenu', handleContextMenu, true);
-      }
-    };
-  }, [value]); // 当value变化时重新绑定
-
   // 点击其他地方或右键点击其他地方时隐藏上下文菜单
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
@@ -573,6 +519,7 @@ export default function MarkdownEditor({
       <div 
         className="editor-content" 
         data-color-mode={theme}
+        onContextMenuCapture={handleEditorContextMenu}
       >
         <MDEditor
           value={value}
@@ -634,7 +581,6 @@ export default function MarkdownEditor({
             transform: 'translate(-50%, -100%)',
           }}
           onClick={(e) => {
-            console.log('菜单被点击');
             e.stopPropagation();
           }}
         >
@@ -663,9 +609,8 @@ export default function MarkdownEditor({
           <button
             className="context-menu-item"
             onClick={(e) => {
-              console.log('AI生图按钮被点击');
               e.stopPropagation();
-              handleGenerateImagePrompt();
+              void handleGenerateImagePrompt();
             }}
             disabled={generatingPrompt}
           >
