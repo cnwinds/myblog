@@ -72,7 +72,7 @@ $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" ps
 echo ""
 echo "✅ 启动完成！"
 echo "📱 前端地址: http://localhost:3000"
-echo "🔧 后端地址: http://localhost:3001"
+echo "🔧 API 地址: http://localhost:3000/api"
 echo ""
 echo "查看日志: $DOCKER_COMPOSE -f $COMPOSE_FILE -p $PROJECT_NAME logs -f"
 echo "停止服务: $DOCKER_COMPOSE -f $COMPOSE_FILE -p $PROJECT_NAME down"

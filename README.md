@@ -60,7 +60,7 @@ chmod +x docker/update.sh
 
 访问应用：
 - 前端：http://localhost:3000
-- 后端 API：http://localhost:3001
+- 后端 API（经前端网关转发）：http://localhost:3000/api
 
 详细说明请查看 [docker/README.md](docker/README.md)
 
@@ -85,6 +85,7 @@ npm run dev
 ```
 
 前端服务运行在 http://localhost:3000
+前端开发服务会通过 Vite 代理将 `/api` 和 `/uploads` 请求转发到后端。
 
 ## 项目结构
 
@@ -133,6 +134,7 @@ npm run dev
 ```
 
 前端应用将在 http://localhost:3000 运行
+前端开发服务会通过 Vite 代理将 `/api` 和 `/uploads` 请求转发到后端。
 
 ## 功能特性
 

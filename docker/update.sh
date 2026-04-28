@@ -93,4 +93,4 @@ $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$PROJECT_NAME" ps
 echo ""
 echo "✅ 更新完成！"
 echo "📱 前端地址: http://localhost:3000"
-echo "🔧 后端地址: http://localhost:3001"
+echo "🔧 API 地址: http://localhost:3000/api"
