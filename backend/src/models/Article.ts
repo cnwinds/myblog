@@ -97,7 +97,8 @@ export class ArticleModel {
       .prepare('INSERT INTO articles (title, content, authorId, imagePlans, category, published, sortOrder, excerpt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(data.title, data.content, data.authorId, data.imagePlans || null, data.category || 'blog', published, data.sortOrder || null, data.excerpt || null, chinaTime, chinaTime);
     
-    return this.findById(result.lastInsertRowid as number)!;
+    // 新建草稿时 published=0，查询时需要允许返回未发布文章
+    return this.findById(result.lastInsertRowid as number, true)!;
   }
 
   static update(id: number, data: UpdateArticleData, authorId: number): Article | null {
