@@ -10,6 +10,7 @@ services:
       - PORT=3001
       - TZ=Asia/Shanghai
       - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - AGENT_API_KEY=${AGENT_API_KEY:-}
       - DB_PATH=/app/data/blog.db
       - UPLOAD_DIR=/app/uploads
     volumes:

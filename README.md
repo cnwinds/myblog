@@ -26,7 +26,7 @@
 ```bash
 # 1. 配置环境变量
 cp docker/.env.example docker/.env
-# 编辑 docker/.env，修改 JWT_SECRET
+# 编辑 docker/.env，修改 JWT_SECRET；如需助手发布，设置 AGENT_API_KEY
 
 # 2. 启动服务
 docker compose -f docker/docker-compose.yml up -d --build
@@ -162,17 +162,53 @@ npm run dev
 
 ### 认证
 - `POST /api/auth/login` - 登录
-- `POST /api/auth/register` - 注册
+- `POST /api/auth/register` - 注册（已禁用）
 
 ### 文章
 - `GET /api/articles` - 获取文章列表
 - `GET /api/articles/:id` - 获取单篇文章
 - `POST /api/articles` - 创建文章（需认证）
+- `POST /api/articles/publish` - 助手一键发布（需认证；转存远程图片后创建）
 - `PUT /api/articles/:id` - 更新文章（需认证）
 - `DELETE /api/articles/:id` - 删除文章（需认证）
 
 ### 上传
 - `POST /api/upload/image` - 上传图片（需认证）
+- `POST /api/upload/from-url` - 将远程图片转存到 `/uploads`（需认证）
+
+## 助手如何发布文章
+
+写作助手不要走浏览器后台。设置 `AGENT_API_KEY` 后，用请求头认证即可，无需 `POST /api/auth/login`。完整约定见 [AGENTS.md](AGENTS.md)。
+
+请求头任选其一：
+
+- `Authorization: Bearer <AGENT_API_KEY>`
+- `X-Agent-Key: <AGENT_API_KEY>`
+
+通过 Key 认证的请求归属站点所有者（数据库中 id 最小的用户）。未设置 `AGENT_API_KEY` 时该方式不可用，人类管理员的 JWT 登录不受影响。
+
+```bash
+# 可选：先把生成的图片落到本地
+curl -sS -X POST https://blog.news-tracker.work/api/upload/from-url \
+  -H "Authorization: Bearer $AGENT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/generated.png"}'
+# 返回 {"url":"/uploads/YYYYWW/image-....jpg"}
+
+# 一键发布（Markdown 里的 http(s) 图片会自动转存；失败的 URL 会留在正文并出现在 imageRewrites.failed）
+curl -sS -X POST https://blog.news-tracker.work/api/articles/publish \
+  -H "Authorization: Bearer $AGENT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "示例标题",
+    "content": "正文，可含 ![alt](https://example.com/remote.jpg)",
+    "category": "blog",
+    "published": true,
+    "excerpt": "可选摘要"
+  }'
+```
+
+成功时返回 `{ id, path, url, title, imageRewrites }`。前台文章路径为 `/article/:id`。
 
 ## 环境变量
 
@@ -183,11 +219,12 @@ PORT=3001
 JWT_SECRET=your-secret-key-change-in-production
 DB_PATH=./blog.db
 UPLOAD_DIR=./uploads
+AGENT_API_KEY=  # 可选；设置后助手可用 Bearer 或 X-Agent-Key 发布，无需登录
 ```
 
 ## 开发说明
 
 1. 首次运行会自动创建数据库和表结构
-2. 可以通过注册接口创建新用户
+2. 注册接口已禁用；可用 `backend/scripts/create-user.ts` 创建用户
 3. 上传的图片存储在 `backend/uploads` 目录
 4. 前端通过代理访问后端API（配置在 `vite.config.ts`）

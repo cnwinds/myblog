@@ -4,6 +4,35 @@ import { ArticleModel } from '../models/Article';
 import { load as loadCheerio } from 'cheerio';
 import TurndownService from 'turndown';
 import { createApiError, handleError } from '../utils/errorHandler';
+import { rehostArticleImages } from '../services/imageRehost';
+import { ImageRewriteResult } from '../utils/imageUrlUtils';
+
+function toPublishedFlag(published: unknown, defaultPublished: boolean = true): number {
+  if (published === false || published === 0 || published === '0') {
+    return 0;
+  }
+  if (published === true || published === 1 || published === '1') {
+    return 1;
+  }
+  return defaultPublished ? 1 : 0;
+}
+
+function stringifyImagePlans(imagePlans: unknown): string | undefined {
+  if (imagePlans == null) {
+    return undefined;
+  }
+  if (typeof imagePlans === 'string') {
+    return imagePlans;
+  }
+  return JSON.stringify(imagePlans);
+}
+
+function withImageRewrites<T extends object>(
+  article: T,
+  imageRewrites: ImageRewriteResult
+): T & { imageRewrites: ImageRewriteResult } {
+  return { ...article, imageRewrites };
+}
 
 // 未登录用户可以查看文章（只读，只返回已发布的）
 export async function getArticles(req: Request, res: Response): Promise<void> {
@@ -48,23 +77,61 @@ export async function createArticle(req: AuthRequest, res: Response): Promise<vo
       throw createApiError('Unauthorized', 401);
     }
 
-    // published: true = 1 (已发布), false = 0 (草稿)
-    const publishedValue = published === false ? 0 : published === true ? 1 : 1; // 默认为已发布
+    const rehosted = await rehostArticleImages(content, imagePlans);
+    const publishedValue = toPublishedFlag(published, true);
 
     const article = ArticleModel.create({
       title,
-      content,
+      content: rehosted.content,
       authorId: req.userId,
-      imagePlans: imagePlans ? JSON.stringify(imagePlans) : undefined,
+      imagePlans: stringifyImagePlans(rehosted.imagePlans),
       category: category || 'blog',
       published: publishedValue,
       sortOrder: sortOrder !== undefined ? sortOrder : undefined,
       excerpt: excerpt || undefined,
     });
 
-    res.status(201).json(article);
+    res.status(201).json(withImageRewrites(article, rehosted.imageRewrites));
   } catch (error) {
     handleError(res, error, '创建文章失败');
+  }
+}
+
+// 助手一键发布：转存远程图片后创建文章，无需再走登录/逐张上传
+export async function publishArticle(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { title, content, category, published, excerpt, imagePlans } = req.body;
+
+    if (!title || !content) {
+      throw createApiError('Title and content are required', 400);
+    }
+
+    if (!req.userId) {
+      throw createApiError('Unauthorized', 401);
+    }
+
+    const rehosted = await rehostArticleImages(content, imagePlans);
+    const publishedValue = toPublishedFlag(published, true);
+
+    const article = ArticleModel.create({
+      title,
+      content: rehosted.content,
+      authorId: req.userId,
+      imagePlans: stringifyImagePlans(rehosted.imagePlans),
+      category: category || 'blog',
+      published: publishedValue,
+      excerpt: excerpt || undefined,
+    });
+
+    res.status(201).json({
+      id: article.id,
+      path: `/article/${article.id}`,
+      url: `/article/${article.id}`,
+      title: article.title,
+      imageRewrites: rehosted.imageRewrites,
+    });
+  } catch (error) {
+    handleError(res, error, '发布文章失败');
   }
 }
 
@@ -82,6 +149,11 @@ export async function updateArticle(req: AuthRequest, res: Response): Promise<vo
       throw createApiError('Unauthorized', 401);
     }
 
+    const article = ArticleModel.findById(id, true);
+    if (!article || article.authorId !== req.userId) {
+      throw createApiError('Article not found or unauthorized', 404);
+    }
+
     const updateData: {
       title?: string;
       content?: string;
@@ -93,30 +165,34 @@ export async function updateArticle(req: AuthRequest, res: Response): Promise<vo
     } = {};
 
     if (title !== undefined) updateData.title = title;
-    if (content !== undefined) updateData.content = content;
-    if (imagePlans !== undefined) {
-      updateData.imagePlans = imagePlans ? JSON.stringify(imagePlans) : null;
+
+    let imageRewrites: ImageRewriteResult = { succeeded: [], failed: [] };
+    if (content !== undefined || imagePlans !== undefined) {
+      const rehosted = await rehostArticleImages(
+        content !== undefined ? content : article.content,
+        imagePlans !== undefined ? imagePlans : article.imagePlans
+      );
+      imageRewrites = rehosted.imageRewrites;
+      updateData.content = rehosted.content;
+      if (imagePlans !== undefined) {
+        updateData.imagePlans = stringifyImagePlans(rehosted.imagePlans) ?? null;
+      } else if (rehosted.imageRewrites.succeeded.length > 0 && rehosted.imagePlans !== undefined) {
+        updateData.imagePlans = stringifyImagePlans(rehosted.imagePlans) ?? null;
+      }
     }
     if (category !== undefined) updateData.category = category;
     if (published !== undefined) {
-      // published: true = 1 (已发布), false = 0 (草稿)
-      updateData.published = published === false ? 0 : published === true ? 1 : 1;
+      updateData.published = toPublishedFlag(published, true);
     }
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
     if (excerpt !== undefined) updateData.excerpt = excerpt || null;
 
-    // 更新时允许查询未发布的文章
-    const article = ArticleModel.findById(id, true);
-    if (!article || article.authorId !== req.userId) {
-      throw createApiError('Article not found or unauthorized', 404);
-    }
-    
     const updatedArticle = ArticleModel.update(id, updateData, req.userId);
     if (!updatedArticle) {
       throw createApiError('Article not found or unauthorized', 404);
     }
 
-    res.json(updatedArticle);
+    res.json(withImageRewrites(updatedArticle, imageRewrites));
   } catch (error) {
     handleError(res, error, '更新文章失败');
   }
