@@ -50,9 +50,13 @@ DB_PATH=/app/data/blog.db
 
 # Upload Directory (container path, no need to modify)
 UPLOAD_DIR=/app/uploads
+
+# Long-lived key for writing assistants (optional). Leave empty to disable.
+# Requests may use Authorization: Bearer <key> or X-Agent-Key: <key>
+AGENT_API_KEY=
 EOF
     echo "✅ 已创建 .env 文件"
-    echo "⚠️  请编辑 $ENV_FILE 文件，修改 JWT_SECRET"
+    echo "⚠️  请编辑 $ENV_FILE 文件，修改 JWT_SECRET（如需助手发布，同时设置 AGENT_API_KEY）"
 fi
 
 # 构建并启动（使用项目名称隔离）

@@ -1,15 +1,10 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import path from 'path';
-import fs from 'fs';
-import sharp from 'sharp';
-import { getYearAndWeek } from '../utils/dateUtils';
+import { saveProcessedImage } from '../services/imageStorage';
+import { persistRemoteImageUrl } from '../services/imageRehost';
+import { isAlreadyLocalUpload, isHttpUrl } from '../utils/imageUrlUtils';
 import { createApiError, handleError } from '../utils/errorHandler';
-
-// 图片处理配置
-const MAX_WIDTH = 1920; // 最大宽度（高清显示）
-const MAX_HEIGHT = 1920; // 最大高度（高清显示）
-const JPEG_QUALITY = 70; // JPG 质量 (1-100)，提高质量以保持清晰度
+import fs from 'fs';
 
 export async function uploadImage(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -18,52 +13,16 @@ export async function uploadImage(req: AuthRequest, res: Response): Promise<void
     }
 
     const originalPath = req.file.path;
-    const uploadDir = process.env.UPLOAD_DIR || './uploads';
-    
-    // 获取年/周目录
-    const { year, weekStr } = getYearAndWeek();
-    const yearWeekDir = path.join(uploadDir, `${year}${weekStr}`);
-    
-    // 确保输出目录存在
-    if (!fs.existsSync(yearWeekDir)) {
-      fs.mkdirSync(yearWeekDir, { recursive: true });
-    }
-    
-    // 生成新的文件名（JPG格式）
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const newFileName = `image-${uniqueSuffix}.jpg`;
-    const outputPath = path.join(yearWeekDir, newFileName);
+    const imageUrl = await saveProcessedImage(originalPath);
 
-    // 使用 sharp 处理图片：缩放、转换为 JPG、压缩
-    await sharp(originalPath)
-      .resize(MAX_WIDTH, MAX_HEIGHT, {
-        fit: 'inside', // 保持宽高比，确保图片不超出最大尺寸
-        withoutEnlargement: true, // 不放大小于最大尺寸的图片
-      })
-      .jpeg({
-        quality: JPEG_QUALITY,
-        mozjpeg: true, // 使用 mozjpeg 编码器以获得更好的压缩
-      })
-      .toFile(outputPath);
-
-    // 删除原始文件
     try {
       fs.unlinkSync(originalPath);
     } catch (err) {
       console.warn('Failed to delete original file:', err);
     }
 
-    // 返回图片URL
-    const relativePath = path.relative(
-      path.resolve(uploadDir),
-      outputPath
-    );
-    
-    const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
-    
     res.json({ url: imageUrl });
   } catch (error) {
-    // 清理可能创建的文件
     if (req.file?.path) {
       try {
         fs.unlinkSync(req.file.path);
@@ -71,7 +30,39 @@ export async function uploadImage(req: AuthRequest, res: Response): Promise<void
         // 忽略删除错误
       }
     }
-    
+
     handleError(res, error, '图片上传失败');
+  }
+}
+
+export async function uploadImageFromUrl(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { url } = req.body;
+
+    if (!url || typeof url !== 'string') {
+      throw createApiError('url is required', 400);
+    }
+
+    if (!isHttpUrl(url)) {
+      throw createApiError('Only http(s) URLs are allowed', 400);
+    }
+
+    if (isAlreadyLocalUpload(url)) {
+      try {
+        const parsed = new URL(url);
+        const path = parsed.pathname.startsWith('/uploads') ? parsed.pathname : url;
+        res.json({ url: path });
+        return;
+      } catch {
+        res.json({ url });
+        return;
+      }
+    }
+
+    const localUrl = await persistRemoteImageUrl(url);
+    res.json({ url: localUrl });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '从 URL 保存图片失败';
+    handleError(res, createApiError(message, 400), '从 URL 保存图片失败');
   }
 }

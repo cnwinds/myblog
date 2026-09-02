@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { uploadImage } from '../controllers/uploadController';
+import { uploadImage, uploadImageFromUrl } from '../controllers/uploadController';
 import { authenticateToken } from '../middleware/auth';
 import { getYearWeekDir } from '../utils/dateUtils';
 
@@ -51,5 +51,6 @@ const upload = multer({
 
 // 登录用户可以上传图片
 router.post('/image', authenticateToken, upload.single('image'), uploadImage);
+router.post('/from-url', authenticateToken, uploadImageFromUrl);
 
 export default router;

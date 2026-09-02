@@ -22,6 +22,10 @@ export class UserModel {
     return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
   }
 
+  static findFirst(): User | undefined {
+    return db.prepare('SELECT * FROM users ORDER BY id ASC LIMIT 1').get() as User | undefined;
+  }
+
   static async create(data: CreateUserData): Promise<User> {
     const hashedPassword = await hashPassword(data.password);
     const result = db
