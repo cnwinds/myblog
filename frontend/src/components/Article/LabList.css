@@ -4,13 +4,6 @@
   padding: 0 var(--spacing-lg) var(--spacing-xl);
 }
 
-.lab-intro {
-  margin: 0 0 var(--spacing-lg);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-}
-
 .lab-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

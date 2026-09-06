@@ -4,8 +4,6 @@ import { articleService, Article } from '../../services/article';
 import { useAuth } from '../../hooks/useAuth';
 import './LabList.css';
 
-const LAB_INTRO = '一些做过的小实验，能玩的优先';
-
 export default function LabList() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,7 +184,6 @@ export default function LabList() {
 
   return (
     <div className="lab-page">
-      <p className="lab-intro">{LAB_INTRO}</p>
       {saving && (
         <div className="saving-indicator">保存排序中...</div>
       )}
