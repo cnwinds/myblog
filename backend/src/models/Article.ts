@@ -61,11 +61,10 @@ export class ArticleModel {
     }
 
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
-    
-    // 对于实验室文章，按 sortOrder 排序（NULL 值排在最后），然后按 createdAt DESC
-    // 对于博客文章，按 createdAt DESC 排序
+
+    // 实验室与博客均按创建时间倒序；实验室以 id 倒序作为并列时的次序
     const orderClause = category === 'lab'
-      ? ' ORDER BY CASE WHEN sortOrder IS NULL THEN 1 ELSE 0 END, sortOrder ASC, createdAt DESC'
+      ? ' ORDER BY createdAt DESC, id DESC'
       : ' ORDER BY createdAt DESC';
 
     const query = `SELECT * FROM articles${whereClause}${orderClause}`;

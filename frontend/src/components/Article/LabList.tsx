@@ -1,18 +1,36 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { articleService, Article } from '../../services/article';
-import { useAuth } from '../../hooks/useAuth';
 import './LabList.css';
 
-const LAB_INTRO = '一些做过的小实验，能玩的优先';
+function getArticleTags(article: Article): string[] {
+  return Array.isArray(article.tags) ? article.tags.filter(Boolean) : [];
+}
+
+function collectFilterTags(articles: Article[]): string[] {
+  const counts = new Map<string, number>();
+
+  for (const article of articles) {
+    for (const tag of getArticleTags(article)) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => {
+      if (b[1] !== a[1]) {
+        return b[1] - a[1];
+      }
+      return a[0].localeCompare(b[0], 'zh-CN');
+    })
+    .map(([tag]) => tag);
+}
 
 export default function LabList() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
-  const { isAuthenticated, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTag = searchParams.get('tag')?.trim() ?? '';
 
   useEffect(() => {
     loadArticles();
@@ -96,187 +114,125 @@ export default function LabList() {
     return null;
   };
 
-  const getArticleTags = (article: Article): string[] => {
-    return Array.isArray(article.tags) ? article.tags.filter(Boolean) : [];
-  };
+  const filterTags = useMemo(() => collectFilterTags(articles), [articles]);
 
-  const isAuthor = (article: Article) => {
-    return isAuthenticated && user && user.id === article.authorId;
-  };
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (!isAuthor(articles[index])) return;
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', '');
-    e.stopPropagation();
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedIndex !== null && draggedIndex !== index) {
-      setDragOverIndex(index);
+  const visibleArticles = useMemo(() => {
+    if (!selectedTag) {
+      return articles;
     }
-  };
+    return articles.filter((article) => getArticleTags(article).includes(selectedTag));
+  }, [articles, selectedTag]);
 
-  const handleDragEnter = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex !== null && draggedIndex !== index) {
-      setDragOverIndex(index);
+  const selectFilter = (tag: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (!tag) {
+      next.delete('tag');
+    } else {
+      next.set('tag', tag);
     }
+    setSearchParams(next, { replace: true });
   };
 
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (draggedIndex === null || draggedIndex === dropIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
+  const handleTagClick = (tag: string) => {
+    if (tag === selectedTag) {
       return;
     }
-
-    const newArticles = [...articles];
-    const draggedArticle = newArticles[draggedIndex];
-
-    newArticles.splice(draggedIndex, 1);
-    newArticles.splice(dropIndex, 0, draggedArticle);
-
-    const updatedArticles = newArticles.map((article, index) => ({
-      ...article,
-      sortOrder: index,
-    }));
-
-    setArticles(updatedArticles);
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-
-    setSaving(true);
-    try {
-      const startIndex = Math.min(draggedIndex, dropIndex);
-      const endIndex = Math.max(draggedIndex, dropIndex);
-      const articlesToUpdate = updatedArticles.slice(startIndex, endIndex + 1);
-
-      for (const article of articlesToUpdate) {
-        await articleService.updateArticle(article.id, {
-          sortOrder: article.sortOrder,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to save sort order:', error);
-      alert('保存排序失败');
-      loadArticles();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleActionClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    selectFilter(tag);
   };
 
   return (
     <div className="lab-page">
-      <p className="lab-intro">{LAB_INTRO}</p>
-      {saving && (
-        <div className="saving-indicator">保存排序中...</div>
-      )}
       {loading ? (
         <div className="loading">加载中...</div>
       ) : articles.length === 0 ? (
         <div className="empty-state">暂无实验室内容</div>
       ) : (
-        <div className="lab-list">
-          {articles.map((article, index) => {
-            const coverImage = getCoverImage(article);
-            const tags = getArticleTags(article);
-            const canDrag = isAuthor(article);
-            const isDragging = draggedIndex === index;
-            const isDragOver = dragOverIndex === index;
-
-            return (
-              <article
-                key={article.id}
-                className={`lab-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${canDrag ? 'draggable' : ''}`}
-                draggable={canDrag || undefined}
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragEnter={(e) => handleDragEnter(e, index)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, index)}
+        <>
+          <div className="lab-filters" role="toolbar" aria-label="按类型筛选">
+            <button
+              type="button"
+              className={`lab-filter ${selectedTag === '' ? 'active' : ''}`}
+              aria-pressed={selectedTag === ''}
+              onClick={() => selectFilter(null)}
+            >
+              全部
+            </button>
+            {filterTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className={`lab-filter ${selectedTag === tag ? 'active' : ''}`}
+                aria-pressed={selectedTag === tag}
+                onClick={() => handleTagClick(tag)}
               >
-                <div className="lab-card">
-                  <Link
-                    to={`/article/${article.id}`}
-                    className="lab-card-main"
-                    onClick={(e) => {
-                      if (draggedIndex !== null) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    <div className="lab-card-cover">
-                      {coverImage ? (
-                        <img src={coverImage} alt={article.title} />
-                      ) : (
-                        <div className="lab-card-cover-placeholder" aria-hidden="true">
-                          <span>暂无封面</span>
+                {tag}
+              </button>
+            ))}
+          </div>
+          {visibleArticles.length === 0 ? (
+            <div className="empty-state">该类型暂无项目</div>
+          ) : (
+            <div className="lab-list">
+              {visibleArticles.map((article) => {
+                const coverImage = getCoverImage(article);
+                const tags = getArticleTags(article);
+
+                return (
+                  <article key={article.id} className="lab-item">
+                    <div className="lab-card">
+                      <Link to={`/article/${article.id}`} className="lab-card-main">
+                        <div className="lab-card-cover">
+                          {coverImage ? (
+                            <img src={coverImage} alt={article.title} />
+                          ) : (
+                            <div className="lab-card-cover-placeholder" aria-hidden="true">
+                              <span>暂无封面</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="lab-card-body">
+                          <h2 className="lab-title">{article.title}</h2>
+                          <p className="lab-tagline">{getArticleExcerpt(article)}</p>
+                          {tags.length > 0 && (
+                            <ul className="lab-tags">
+                              {tags.map((tag) => (
+                                <li key={tag} className="lab-tag">{tag}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </Link>
+                      {(article.demoUrl || article.repoUrl) && (
+                        <div className="lab-card-actions">
+                          {article.demoUrl && (
+                            <a
+                              href={article.demoUrl}
+                              className="lab-action lab-action-demo"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              体验
+                            </a>
+                          )}
+                          {article.repoUrl && (
+                            <a
+                              href={article.repoUrl}
+                              className="lab-action lab-action-repo"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              GitHub
+                            </a>
+                          )}
                         </div>
                       )}
                     </div>
-                    <div className="lab-card-body">
-                      <h2 className="lab-title">{article.title}</h2>
-                      <p className="lab-tagline">{getArticleExcerpt(article)}</p>
-                      {tags.length > 0 && (
-                        <ul className="lab-tags">
-                          {tags.map((tag) => (
-                            <li key={tag} className="lab-tag">{tag}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </Link>
-                  {(article.demoUrl || article.repoUrl) && (
-                    <div className="lab-card-actions">
-                      {article.demoUrl && (
-                        <a
-                          href={article.demoUrl}
-                          className="lab-action lab-action-demo"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={handleActionClick}
-                        >
-                          体验
-                        </a>
-                      )}
-                      {article.repoUrl && (
-                        <a
-                          href={article.repoUrl}
-                          className="lab-action lab-action-repo"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={handleActionClick}
-                        >
-                          GitHub
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
