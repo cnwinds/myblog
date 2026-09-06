@@ -25,6 +25,12 @@ export function initDatabase() {
       authorId INTEGER NOT NULL,
       imagePlans TEXT,
       category TEXT DEFAULT 'blog',
+      published INTEGER DEFAULT 1,
+      sortOrder INTEGER,
+      excerpt TEXT,
+      demoUrl TEXT,
+      repoUrl TEXT,
+      tags TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (authorId) REFERENCES users(id)
@@ -46,6 +52,9 @@ export function initDatabase() {
     },
     { column: 'sortOrder', sql: 'ALTER TABLE articles ADD COLUMN sortOrder INTEGER' },
     { column: 'excerpt', sql: 'ALTER TABLE articles ADD COLUMN excerpt TEXT' },
+    { column: 'demoUrl', sql: 'ALTER TABLE articles ADD COLUMN demoUrl TEXT' },
+    { column: 'repoUrl', sql: 'ALTER TABLE articles ADD COLUMN repoUrl TEXT' },
+    { column: 'tags', sql: 'ALTER TABLE articles ADD COLUMN tags TEXT' },
   ];
 
   for (const { column, sql, updateSql } of alterTableColumns) {

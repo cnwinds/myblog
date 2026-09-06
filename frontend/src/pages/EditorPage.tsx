@@ -14,6 +14,9 @@ interface ArticleFormData {
   category: Category;
   excerpt: string;
   imagePlans: ImagePlan[] | null;
+  demoUrl: string;
+  repoUrl: string;
+  tags: string[];
 }
 
 function createArticleSnapshot(data: ArticleFormData): string {
@@ -23,6 +26,9 @@ function createArticleSnapshot(data: ArticleFormData): string {
     category: data.category,
     excerpt: data.excerpt.trim(),
     imagePlans: data.imagePlans || null,
+    demoUrl: data.demoUrl.trim(),
+    repoUrl: data.repoUrl.trim(),
+    tags: data.tags,
   });
 }
 
@@ -34,6 +40,10 @@ export default function EditorPage() {
   const [content, setContent] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [category, setCategory] = useState<Category>('blog');
+  const [demoUrl, setDemoUrl] = useState('');
+  const [repoUrl, setRepoUrl] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState('');
   const [imagePlans, setImagePlans] = useState<ImagePlan[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -48,6 +58,9 @@ export default function EditorPage() {
     category: 'blog',
     excerpt: '',
     imagePlans: null,
+    demoUrl: '',
+    repoUrl: '',
+    tags: [],
     articleId: null,
   });
   const isPublishingRef = useRef<boolean>(false); // 标记是否正在发布
@@ -72,9 +85,12 @@ export default function EditorPage() {
       category,
       excerpt,
       imagePlans,
+      demoUrl,
+      repoUrl,
+      tags,
       articleId: currentArticleId,
     };
-  }, [title, content, category, excerpt, imagePlans, currentArticleId]);
+  }, [title, content, category, excerpt, imagePlans, demoUrl, repoUrl, tags, currentArticleId]);
 
   const autoSaveDraft = useCallback(async () => {
     if (isPublishingRef.current || isCurrentArticlePublishedRef.current || autoSavingRef.current) {
@@ -101,6 +117,9 @@ export default function EditorPage() {
         category: values.category,
         excerpt: values.excerpt || undefined,
         imagePlans: values.imagePlans || undefined,
+        demoUrl: values.demoUrl || null,
+        repoUrl: values.repoUrl || null,
+        tags: values.tags,
         published: false as const,
       };
 
@@ -213,10 +232,16 @@ export default function EditorPage() {
         }
       }
       
+      const loadedTags = Array.isArray(article.tags) ? article.tags : [];
+
       setTitle(article.title);
       setContent(article.content);
       setExcerpt(article.excerpt || '');
       setCategory((article.category as Category) || 'blog');
+      setDemoUrl(article.demoUrl || '');
+      setRepoUrl(article.repoUrl || '');
+      setTags(loadedTags);
+      setTagDraft('');
       setImagePlans(parsedImagePlans);
       
       const loadedFormData: ArticleFormData = {
@@ -225,6 +250,9 @@ export default function EditorPage() {
         category: (article.category as Category) || 'blog',
         excerpt: article.excerpt || '',
         imagePlans: parsedImagePlans,
+        demoUrl: article.demoUrl || '',
+        repoUrl: article.repoUrl || '',
+        tags: loadedTags,
       };
 
       lastSavedSnapshotRef.current = createArticleSnapshot(loadedFormData);
@@ -282,6 +310,9 @@ export default function EditorPage() {
         category,
         excerpt: excerpt || undefined,
         imagePlans: imagePlans || undefined,
+        demoUrl: demoUrl || null,
+        repoUrl: repoUrl || null,
+        tags,
         published: false, // 保存为草稿
       };
 
@@ -303,6 +334,9 @@ export default function EditorPage() {
         category,
         excerpt,
         imagePlans,
+        demoUrl,
+        repoUrl,
+        tags,
       });
       isCurrentArticlePublishedRef.current = false;
 
@@ -334,6 +368,9 @@ export default function EditorPage() {
         category,
         excerpt: excerpt || undefined,
         imagePlans: imagePlans || undefined,
+        demoUrl: demoUrl || null,
+        repoUrl: repoUrl || null,
+        tags,
         published: true, // 发布，转为正式文章
       };
 
@@ -357,6 +394,9 @@ export default function EditorPage() {
         category,
         excerpt,
         imagePlans,
+        demoUrl,
+        repoUrl,
+        tags,
       });
       isCurrentArticlePublishedRef.current = true;
 
@@ -441,6 +481,78 @@ export default function EditorPage() {
                 rows={2}
               />
             </div>
+            {category === 'lab' && (
+              <div className="lab-meta-section">
+                <input
+                  type="text"
+                  placeholder="体验地址（demoUrl，可选）"
+                  value={demoUrl}
+                  onChange={(e) => setDemoUrl(e.target.value)}
+                  className="lab-meta-input"
+                />
+                <input
+                  type="text"
+                  placeholder="GitHub 地址（repoUrl，可选）"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  className="lab-meta-input"
+                />
+                <div className="lab-tags-field">
+                  <div className="lab-tag-chips">
+                    {tags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className="lab-tag-chip"
+                        onClick={() => setTags(tags.filter((item) => item !== tag))}
+                        title="移除标签"
+                      >
+                        {tag}
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    ))}
+                    <input
+                      type="text"
+                      placeholder={tags.length === 0 ? '标签，逗号或回车添加，如 游戏,AI' : '继续添加标签'}
+                      value={tagDraft}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (/[,，]/.test(value)) {
+                          const parts = value.split(/[,，]/);
+                          const next = parts.slice(0, -1).map((item) => item.trim()).filter(Boolean);
+                          if (next.length > 0) {
+                            setTags(Array.from(new Set([...tags, ...next])));
+                          }
+                          setTagDraft(parts[parts.length - 1]);
+                          return;
+                        }
+                        setTagDraft(value);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const next = tagDraft.trim();
+                          if (next) {
+                            setTags(Array.from(new Set([...tags, next])));
+                            setTagDraft('');
+                          }
+                        } else if (e.key === 'Backspace' && !tagDraft && tags.length > 0) {
+                          setTags(tags.slice(0, -1));
+                        }
+                      }}
+                      onBlur={() => {
+                        const next = tagDraft.trim();
+                        if (next) {
+                          setTags(Array.from(new Set([...tags, next])));
+                          setTagDraft('');
+                        }
+                      }}
+                      className="lab-tag-input"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="editor-body">
             <MarkdownEditor

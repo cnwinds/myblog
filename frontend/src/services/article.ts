@@ -11,6 +11,9 @@ export interface Article {
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
   excerpt?: string; // 文章摘要
+  demoUrl?: string | null;
+  repoUrl?: string | null;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +25,9 @@ export interface CreateArticleData {
   category?: string;
   published?: boolean; // true = 已发布, false = 草稿
   excerpt?: string; // 文章摘要
+  demoUrl?: string | null;
+  repoUrl?: string | null;
+  tags?: string[];
 }
 
 export interface UpdateArticleData {
@@ -32,6 +38,9 @@ export interface UpdateArticleData {
   published?: boolean; // true = 已发布, false = 草稿
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
   excerpt?: string; // 文章摘要
+  demoUrl?: string | null;
+  repoUrl?: string | null;
+  tags?: string[];
 }
 
 export const articleService = {
