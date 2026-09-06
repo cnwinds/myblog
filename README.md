@@ -158,6 +158,10 @@ npm run dev
    - 支持图片URL输入
    - 自动插入Markdown语法
 
+5. **实验室**
+   - `/lab` 以项目卡片展示（封面、标签、体验 / GitHub）
+   - 仍使用 `category: 'lab'` 文章，详见 [docs/lab.md](docs/lab.md)
+
 ## API接口
 
 ### 认证
@@ -204,7 +208,10 @@ curl -sS -X POST https://blog.news-tracker.work/api/articles/publish \
     "content": "正文，可含 ![alt](https://example.com/remote.jpg)",
     "category": "blog",
     "published": true,
-    "excerpt": "可选摘要"
+    "excerpt": "可选摘要",
+    "demoUrl": "https://example.com/play",
+    "repoUrl": "https://github.com/example/repo",
+    "tags": ["游戏", "AI"]
   }'
 ```
 

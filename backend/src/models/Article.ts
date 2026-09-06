@@ -11,6 +11,9 @@ export interface Article {
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
   excerpt?: string; // 文章摘要
+  demoUrl?: string | null; // 实验室：可玩 Demo 地址
+  repoUrl?: string | null; // 实验室：GitHub 仓库
+  tags?: string | null; // 实验室：JSON 字符串数组，如 ["游戏","AI"]
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +27,9 @@ export interface CreateArticleData {
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
   excerpt?: string; // 文章摘要
+  demoUrl?: string | null;
+  repoUrl?: string | null;
+  tags?: string | null;
 }
 
 export interface UpdateArticleData {
@@ -34,6 +40,9 @@ export interface UpdateArticleData {
   published?: number; // 0 = 未发布（草稿）, 1 = 已发布
   sortOrder?: number; // 排序顺序（主要用于实验室文章）
   excerpt?: string | null; // 文章摘要
+  demoUrl?: string | null;
+  repoUrl?: string | null;
+  tags?: string | null;
 }
 
 export class ArticleModel {
@@ -94,8 +103,22 @@ export class ArticleModel {
     const chinaTime = getChinaDateTimeString();
     const published = data.published !== undefined ? data.published : 1; // 默认为已发布
     const result = db
-      .prepare('INSERT INTO articles (title, content, authorId, imagePlans, category, published, sortOrder, excerpt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(data.title, data.content, data.authorId, data.imagePlans || null, data.category || 'blog', published, data.sortOrder || null, data.excerpt || null, chinaTime, chinaTime);
+      .prepare('INSERT INTO articles (title, content, authorId, imagePlans, category, published, sortOrder, excerpt, demoUrl, repoUrl, tags, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(
+        data.title,
+        data.content,
+        data.authorId,
+        data.imagePlans || null,
+        data.category || 'blog',
+        published,
+        data.sortOrder || null,
+        data.excerpt || null,
+        data.demoUrl || null,
+        data.repoUrl || null,
+        data.tags || null,
+        chinaTime,
+        chinaTime
+      );
     
     // 新建草稿时 published=0，查询时需要允许返回未发布文章
     return this.findById(result.lastInsertRowid as number, true)!;
@@ -120,6 +143,9 @@ export class ArticleModel {
       'published',
       'sortOrder',
       'excerpt',
+      'demoUrl',
+      'repoUrl',
+      'tags',
     ];
 
     for (const field of updateFields) {

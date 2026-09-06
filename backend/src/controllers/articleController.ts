@@ -6,6 +6,12 @@ import TurndownService from 'turndown';
 import { createApiError, handleError } from '../utils/errorHandler';
 import { rehostArticleImages } from '../services/imageRehost';
 import { ImageRewriteResult } from '../utils/imageUrlUtils';
+import {
+  normalizeOptionalUrl,
+  serializeArticle,
+  serializeArticles,
+  stringifyTags,
+} from '../utils/articleFields';
 
 function toPublishedFlag(published: unknown, defaultPublished: boolean = true): number {
   if (published === false || published === 0 || published === '0') {
@@ -39,7 +45,7 @@ export async function getArticles(req: Request, res: Response): Promise<void> {
   try {
     const category = req.query.category as string | undefined;
     const articles = ArticleModel.findAll(category, false); // 不包含未发布的
-    res.json(articles);
+    res.json(serializeArticles(articles));
   } catch (error) {
     handleError(res, error, '获取文章列表失败');
   }
@@ -58,7 +64,7 @@ export async function getArticle(req: Request, res: Response): Promise<void> {
       throw createApiError('Article not found', 404);
     }
 
-    res.json(article);
+    res.json(serializeArticle(article));
   } catch (error) {
     handleError(res, error, '获取文章详情失败');
   }
@@ -67,7 +73,7 @@ export async function getArticle(req: Request, res: Response): Promise<void> {
 // 登录用户可以创建文章
 export async function createArticle(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { title, content, imagePlans, category, published, sortOrder, excerpt } = req.body;
+    const { title, content, imagePlans, category, published, sortOrder, excerpt, demoUrl, repoUrl, tags } = req.body;
 
     if (!title || !content) {
       throw createApiError('Title and content are required', 400);
@@ -89,9 +95,12 @@ export async function createArticle(req: AuthRequest, res: Response): Promise<vo
       published: publishedValue,
       sortOrder: sortOrder !== undefined ? sortOrder : undefined,
       excerpt: excerpt || undefined,
+      demoUrl: normalizeOptionalUrl(demoUrl) ?? null,
+      repoUrl: normalizeOptionalUrl(repoUrl) ?? null,
+      tags: stringifyTags(tags),
     });
 
-    res.status(201).json(withImageRewrites(article, rehosted.imageRewrites));
+    res.status(201).json(withImageRewrites(serializeArticle(article), rehosted.imageRewrites));
   } catch (error) {
     handleError(res, error, '创建文章失败');
   }
@@ -100,7 +109,7 @@ export async function createArticle(req: AuthRequest, res: Response): Promise<vo
 // 助手一键发布：转存远程图片后创建文章，无需再走登录/逐张上传
 export async function publishArticle(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { title, content, category, published, excerpt, imagePlans } = req.body;
+    const { title, content, category, published, excerpt, imagePlans, demoUrl, repoUrl, tags } = req.body;
 
     if (!title || !content) {
       throw createApiError('Title and content are required', 400);
@@ -121,13 +130,20 @@ export async function publishArticle(req: AuthRequest, res: Response): Promise<v
       category: category || 'blog',
       published: publishedValue,
       excerpt: excerpt || undefined,
+      demoUrl: normalizeOptionalUrl(demoUrl) ?? null,
+      repoUrl: normalizeOptionalUrl(repoUrl) ?? null,
+      tags: stringifyTags(tags),
     });
 
+    const serialized = serializeArticle(article);
     res.status(201).json({
-      id: article.id,
-      path: `/article/${article.id}`,
-      url: `/article/${article.id}`,
-      title: article.title,
+      id: serialized.id,
+      path: `/article/${serialized.id}`,
+      url: `/article/${serialized.id}`,
+      title: serialized.title,
+      demoUrl: serialized.demoUrl,
+      repoUrl: serialized.repoUrl,
+      tags: serialized.tags,
       imageRewrites: rehosted.imageRewrites,
     });
   } catch (error) {
@@ -143,7 +159,7 @@ export async function updateArticle(req: AuthRequest, res: Response): Promise<vo
       throw createApiError('Invalid article ID', 400);
     }
 
-    const { title, content, imagePlans, category, published, sortOrder, excerpt } = req.body;
+    const { title, content, imagePlans, category, published, sortOrder, excerpt, demoUrl, repoUrl, tags } = req.body;
 
     if (!req.userId) {
       throw createApiError('Unauthorized', 401);
@@ -162,6 +178,9 @@ export async function updateArticle(req: AuthRequest, res: Response): Promise<vo
       published?: number;
       sortOrder?: number;
       excerpt?: string | null;
+      demoUrl?: string | null;
+      repoUrl?: string | null;
+      tags?: string | null;
     } = {};
 
     if (title !== undefined) updateData.title = title;
@@ -186,13 +205,16 @@ export async function updateArticle(req: AuthRequest, res: Response): Promise<vo
     }
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
     if (excerpt !== undefined) updateData.excerpt = excerpt || null;
+    if (demoUrl !== undefined) updateData.demoUrl = normalizeOptionalUrl(demoUrl) ?? null;
+    if (repoUrl !== undefined) updateData.repoUrl = normalizeOptionalUrl(repoUrl) ?? null;
+    if (tags !== undefined) updateData.tags = stringifyTags(tags);
 
     const updatedArticle = ArticleModel.update(id, updateData, req.userId);
     if (!updatedArticle) {
       throw createApiError('Article not found or unauthorized', 404);
     }
 
-    res.json(withImageRewrites(updatedArticle, imageRewrites));
+    res.json(withImageRewrites(serializeArticle(updatedArticle), imageRewrites));
   } catch (error) {
     handleError(res, error, '更新文章失败');
   }
@@ -229,7 +251,7 @@ export async function getUnpublishedArticles(req: AuthRequest, res: Response): P
     }
 
     const articles = ArticleModel.findUnpublished(req.userId);
-    res.json(articles);
+    res.json(serializeArticles(articles));
   } catch (error) {
     handleError(res, error, '获取未发布文章失败');
   }

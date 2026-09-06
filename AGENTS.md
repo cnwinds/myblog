@@ -26,12 +26,17 @@
   "category": "blog",
   "published": true,
   "excerpt": "可选摘要",
-  "imagePlans": []
+  "imagePlans": [],
+  "demoUrl": "https://example.com/play",
+  "repoUrl": "https://github.com/example/repo",
+  "tags": ["游戏", "AI"]
 }
 ```
 
 - `category`：`blog` | `lab`，默认 `blog`
 - `published`：默认 `true`
+- `demoUrl` / `repoUrl` / `tags`：可选；实验室项目用。`tags` 存 JSON 文本，接口返回字符串数组。博客文章可省略。
+- 实验室卡片封面取正文第一张 Markdown 图片
 - 服务端会下载 Markdown（以及 `imagePlans` 里的 `url` / `imageUrl`）中的远程图片，保存到本地 `/uploads/YYYYWW/`，并把链接改写成 `/uploads/...`
 - 已指向本站的地址会跳过：`/uploads/...`、`https://blog.news-tracker.work/uploads/...`
 - 单个图片下载失败（超时、非公网、非图片）不会导致整篇发布失败；失败 URL 留在原文，并出现在响应的 `imageRewrites.failed`
@@ -44,6 +49,9 @@
   "path": "/article/1",
   "url": "/article/1",
   "title": "标题",
+  "demoUrl": "https://example.com/play",
+  "repoUrl": "https://github.com/example/repo",
+  "tags": ["游戏", "AI"],
   "imageRewrites": {
     "succeeded": [{ "from": "https://...", "to": "/uploads/202609/image-....jpg" }],
     "failed": [{ "url": "https://...", "reason": "Download timed out" }]
