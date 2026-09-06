@@ -1,30 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { articleService, Article } from '../../services/article';
+import { articleMatchesFilter, collectFilterTags, getArticleTags } from './labFilters';
 import './LabList.css';
-
-function getArticleTags(article: Article): string[] {
-  return Array.isArray(article.tags) ? article.tags.filter(Boolean) : [];
-}
-
-function collectFilterTags(articles: Article[]): string[] {
-  const counts = new Map<string, number>();
-
-  for (const article of articles) {
-    for (const tag of getArticleTags(article)) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    }
-  }
-
-  return [...counts.entries()]
-    .sort((a, b) => {
-      if (b[1] !== a[1]) {
-        return b[1] - a[1];
-      }
-      return a[0].localeCompare(b[0], 'zh-CN');
-    })
-    .map(([tag]) => tag);
-}
 
 export default function LabList() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -117,10 +95,7 @@ export default function LabList() {
   const filterTags = useMemo(() => collectFilterTags(articles), [articles]);
 
   const visibleArticles = useMemo(() => {
-    if (!selectedTag) {
-      return articles;
-    }
-    return articles.filter((article) => getArticleTags(article).includes(selectedTag));
+    return articles.filter((article) => articleMatchesFilter(article, selectedTag));
   }, [articles, selectedTag]);
 
   const selectFilter = (tag: string | null) => {
