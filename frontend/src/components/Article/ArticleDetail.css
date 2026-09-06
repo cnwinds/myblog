@@ -53,6 +53,95 @@
   line-height: 1.2;
 }
 
+.article-lab-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 var(--spacing-md);
+  padding: 0;
+}
+
+.article-lab-tag {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-text-link);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.article-project-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0 0 var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.article-project-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
+.article-project-url {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+  min-width: 0;
+}
+
+.article-project-url:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* 与 Lab 卡片操作按钮保持一致，详情页略放大以便点击 */
+.article-project-links .lab-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 72px;
+  min-height: 36px;
+  padding: 4px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.article-project-links .lab-action-demo {
+  background: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.25);
+}
+
+.article-project-links .lab-action-demo:hover {
+  background: var(--color-primary-hover);
+}
+
+.article-project-links .lab-action-repo {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-dark);
+}
+
+.article-project-links .lab-action-repo:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .article-meta {
   color: var(--color-text-tertiary);
   font-size: var(--font-size-sm);
@@ -222,4 +311,29 @@
   border-top: 1px solid var(--color-border);
   display: flex;
   justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .article-detail {
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+
+  .article-content {
+    padding: var(--spacing-lg);
+  }
+
+  .article-content h1 {
+    font-size: var(--font-size-2xl);
+  }
+
+  .article-project-link {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-xs);
+  }
+
+  .article-project-links .lab-action {
+    width: 100%;
+    min-height: 40px;
+  }
 }
