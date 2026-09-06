@@ -85,6 +85,34 @@ describe('ArticleModel lab fields persistence', () => {
     assert.equal(updated?.tags, '["推理"]');
   });
 
+  it('lists lab articles by createdAt descending and ignores sortOrder', () => {
+    const older = ArticleModel.create({
+      title: '较早的实验室',
+      content: '旧项目',
+      authorId: 1,
+      category: 'lab',
+      sortOrder: 0,
+    });
+    const newer = ArticleModel.create({
+      title: '较新的实验室',
+      content: '新项目',
+      authorId: 1,
+      category: 'lab',
+      sortOrder: 99,
+    });
+
+    db.prepare('UPDATE articles SET createdAt = ? WHERE id = ?').run('2024-01-01 00:00:00', older.id);
+    db.prepare('UPDATE articles SET createdAt = ? WHERE id = ?').run('2025-06-01 12:00:00', newer.id);
+
+    const listed = ArticleModel.findAll('lab');
+    const olderIndex = listed.findIndex((item) => item.id === older.id);
+    const newerIndex = listed.findIndex((item) => item.id === newer.id);
+
+    assert.ok(newerIndex >= 0);
+    assert.ok(olderIndex >= 0);
+    assert.ok(newerIndex < olderIndex);
+  });
+
   it('does not break blog posts when lab fields are omitted', () => {
     const blog = ArticleModel.create({
       title: '博客文章',
