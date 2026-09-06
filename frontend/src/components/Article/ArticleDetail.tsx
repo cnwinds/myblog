@@ -122,9 +122,16 @@ export default function ArticleDetail() {
 
   const isAuthor = isAuthenticated && user?.id === article.authorId;
   const isUpdated = article.updatedAt !== article.createdAt;
-  
+  const isLabArticle = article.category === 'lab';
+  const labTags = isLabArticle && Array.isArray(article.tags)
+    ? article.tags.filter((tag) => Boolean(tag && tag.trim()))
+    : [];
+  const demoUrl = isLabArticle ? article.demoUrl?.trim() || '' : '';
+  const repoUrl = isLabArticle ? article.repoUrl?.trim() || '' : '';
+  const showProjectLinks = Boolean(demoUrl || repoUrl);
+
   // 根据文章分类决定返回链接
-  const backLink = article.category === 'lab' ? '/lab' : '/';
+  const backLink = isLabArticle ? '/lab' : '/';
 
   return (
     <div className="article-detail">
@@ -147,6 +154,59 @@ export default function ArticleDetail() {
       </div>
       <article className="article-content">
         <h1>{article.title}</h1>
+        {labTags.length > 0 && (
+          <ul className="article-lab-tags" aria-label="项目标签">
+            {labTags.map((tag) => (
+              <li key={tag} className="article-lab-tag">{tag}</li>
+            ))}
+          </ul>
+        )}
+        {showProjectLinks && (
+          <section className="article-project-links" aria-label="项目链接">
+            {demoUrl && (
+              <div className="article-project-link">
+                <a
+                  href={demoUrl}
+                  className="lab-action lab-action-demo"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`体验：${demoUrl}`}
+                >
+                  体验
+                </a>
+                <a
+                  href={demoUrl}
+                  className="article-project-url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {demoUrl}
+                </a>
+              </div>
+            )}
+            {repoUrl && (
+              <div className="article-project-link">
+                <a
+                  href={repoUrl}
+                  className="lab-action lab-action-repo"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`GitHub：${repoUrl}`}
+                >
+                  GitHub
+                </a>
+                <a
+                  href={repoUrl}
+                  className="article-project-url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {repoUrl}
+                </a>
+              </div>
+            )}
+          </section>
+        )}
         <div className="article-meta">
           <span>{formatChinaDateTime(article.createdAt)}</span>
           {isAuthenticated && isUpdated && (

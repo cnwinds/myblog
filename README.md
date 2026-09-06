@@ -160,6 +160,7 @@ npm run dev
 
 5. **实验室**
    - `/lab` 以项目卡片展示（封面、标签、体验 / GitHub）
+   - 实验室文章详情页同样提供体验 / 仓库入口
    - 仍使用 `category: 'lab'` 文章，详见 [docs/lab.md](docs/lab.md)
 
 ## API接口
