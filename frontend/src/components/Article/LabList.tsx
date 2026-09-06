@@ -1,25 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { articleService, Article } from '../../services/article';
+import { articleMatchesFilter, collectFilterTags, getArticleTags } from './labFilters';
 import './LabList.css';
-
-const LAB_FILTER_CATEGORIES = ['游戏', 'AI', '工具', '阅读'] as const;
-
-function getArticleTags(article: Article): string[] {
-  return Array.isArray(article.tags) ? article.tags.filter(Boolean) : [];
-}
-
-function collectFilterTags(articles: Article[]): string[] {
-  const present = new Set<string>();
-
-  for (const article of articles) {
-    for (const tag of getArticleTags(article)) {
-      present.add(tag);
-    }
-  }
-
-  return LAB_FILTER_CATEGORIES.filter((tag) => present.has(tag));
-}
 
 export default function LabList() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -112,10 +95,7 @@ export default function LabList() {
   const filterTags = useMemo(() => collectFilterTags(articles), [articles]);
 
   const visibleArticles = useMemo(() => {
-    if (!selectedTag) {
-      return articles;
-    }
-    return articles.filter((article) => getArticleTags(article).includes(selectedTag));
+    return articles.filter((article) => articleMatchesFilter(article, selectedTag));
   }, [articles, selectedTag]);
 
   const selectFilter = (tag: string | null) => {
