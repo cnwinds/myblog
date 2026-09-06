@@ -83,6 +83,7 @@
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -192,7 +193,25 @@
   }
 
   .header-top {
+    flex-wrap: wrap;
     gap: var(--spacing-sm);
+    row-gap: var(--spacing-xs);
+  }
+
+  .logo {
+    order: 1;
+  }
+
+  .nav {
+    order: 2;
+    margin-left: auto;
+    gap: var(--spacing-xs);
+  }
+
+  .category-nav-inline {
+    order: 3;
+    flex: 1 0 100%;
+    justify-content: center;
   }
 
   .logo h1 {
@@ -200,12 +219,13 @@
   }
 
   .category-tab {
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
     font-size: var(--font-size-base);
   }
 
-  .nav {
-    gap: var(--spacing-sm);
+  .nav-link {
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-xs);
   }
 
   .main-content {
