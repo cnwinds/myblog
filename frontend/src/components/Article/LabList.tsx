@@ -3,27 +3,22 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { articleService, Article } from '../../services/article';
 import './LabList.css';
 
+const LAB_FILTER_CATEGORIES = ['游戏', 'AI', '工具', '阅读'] as const;
+
 function getArticleTags(article: Article): string[] {
   return Array.isArray(article.tags) ? article.tags.filter(Boolean) : [];
 }
 
 function collectFilterTags(articles: Article[]): string[] {
-  const counts = new Map<string, number>();
+  const present = new Set<string>();
 
   for (const article of articles) {
     for (const tag of getArticleTags(article)) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      present.add(tag);
     }
   }
 
-  return [...counts.entries()]
-    .sort((a, b) => {
-      if (b[1] !== a[1]) {
-        return b[1] - a[1];
-      }
-      return a[0].localeCompare(b[0], 'zh-CN');
-    })
-    .map(([tag]) => tag);
+  return LAB_FILTER_CATEGORIES.filter((tag) => present.has(tag));
 }
 
 export default function LabList() {
