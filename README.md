@@ -56,11 +56,32 @@ chmod +x docker/update.sh
 2. 检测是否有更新
 3. 如果有更新，重新构建 Docker 镜像
 4. 重启服务
-```
 
 访问应用：
 - 前端：http://localhost:3000
 - 后端 API（经前端网关转发）：http://localhost:3000/api
+
+### 生产环境：拉取 GHCR 镜像
+
+推送到 `main`（或 `v*` 标签）后，GitHub Actions 会构建并推送：
+
+- `ghcr.io/cnwinds/myblog-backend`（`latest`、`sha-<shortsha>`，标签构建另加 git tag）
+- `ghcr.io/cnwinds/myblog-frontend`（同上）
+
+生产机直接拉取，不必从源码构建：
+
+```bash
+cp docker/.env.example docker/.env
+# 编辑 docker/.env，填入 JWT_SECRET 等（不要提交）
+
+cd docker
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+数据在命名卷里：`myblog-data` → `/app/data`，`myblog-uploads` → `/app/uploads`。首次上线若已有数据库或上传文件，用 `docker cp` 拷进运行中的后端容器即可，不要另做一套备份方案。
+
+首次拉取若 401，到 GitHub Packages 将这两个包设为 Public，或先 `docker login ghcr.io`。
 
 详细说明请查看 [docker/README.md](docker/README.md)
 
@@ -99,12 +120,12 @@ myblog/
 │   │   ├── middleware/   # 中间件
 │   │   └── utils/    # 工具函数
 ├── docker/           # Docker 配置文件
-│   ├── docker-compose.yml  # 生产环境配置
-│   ├── docker-compose.dev.yml  # 开发环境配置
+│   ├── docker-compose.yml       # 本地：从源码构建
+│   ├── docker-compose.prod.yml  # 生产：拉取 GHCR 镜像
+│   ├── docker-compose.dev.yml   # 开发环境配置
 │   ├── backend.Dockerfile
 │   ├── frontend.Dockerfile
 │   └── nginx.conf
-│   └── uploads/      # 图片上传目录
 └── frontend/         # 前端项目
     └── src/
         ├── components/   # 组件

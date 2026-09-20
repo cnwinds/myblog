@@ -1,0 +1,52 @@
+# 生产环境：拉取 GHCR 预构建镜像（不在现场 build）。
+# 用法（在 docker/ 目录）：
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+name: myblog
+
+services:
+  backend:
+    image: ghcr.io/cnwinds/myblog-backend:latest
+    container_name: myblog-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      TZ: Asia/Shanghai
+      DB_PATH: /app/data/blog.db
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - myblog-data:/app/data
+      - myblog-uploads:/app/uploads
+    networks:
+      - myblog-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3001/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ghcr.io/cnwinds/myblog-frontend:latest
+    container_name: myblog-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - myblog-uploads:/usr/share/nginx/uploads
+    networks:
+      - myblog-network
+
+volumes:
+  myblog-data:
+  myblog-uploads:
+
+networks:
+  myblog-network:
+    driver: bridge
