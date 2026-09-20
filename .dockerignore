@@ -1,0 +1,18 @@
+# 构建上下文是仓库根目录（docker compose context: ..）。
+# 排除密钥、本地数据和体积大的目录，避免打进镜像。
+.git
+.github
+.cursor
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/dist
+**/*.log
+**/*.db
+**/uploads
+docker/backend-data
+docker/backend-uploads
+.DS_Store
+.vscode
+.idea

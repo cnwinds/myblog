@@ -1,6 +1,6 @@
 # 后端 Dockerfile
-# 使用渡渡鸟（docker.aityp.com）提供的华为云镜像加速
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:20-alpine AS builder
+# 使用 Docker Hub 官方基础镜像，便于 GitHub Actions 等海外环境拉取
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -32,7 +32,7 @@ COPY backend/ ./
 RUN npm run build
 
 # 生产环境镜像
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:20-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
