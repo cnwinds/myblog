@@ -1,210 +1,191 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { articleService, Article } from '../../services/article';
-import { articleMatchesFilter, collectFilterTags, getArticleTags } from './labFilters';
+import { FaGithub } from 'react-icons/fa';
+import { FiPlay } from 'react-icons/fi';
+import { useArticles } from '../../hooks/useArticles';
+import type { Article } from '../../services/article';
+import { siteConfig } from '../../config/site';
+import { getArticleExcerpt, getCoverImage } from '../../utils/articleText';
+import { formatChinaDotDate } from '../../utils/dateUtils';
+import CoverImage from './CoverImage';
+import { articleMatchesFilter, collectFilterTags, getArticleTags, tagChipClass } from './labFilters';
+import { assignCellSizes, type CellSize } from './labLayout';
 import './LabList.css';
 
+function LabCell({ article, size, index }: { article: Article; size: CellSize; index: number }) {
+  const tags = getArticleTags(article);
+  const playable = Boolean(article.demoUrl);
+  const code = `EXP.${String(article.id).padStart(3, '0')}`;
+
+  return (
+    <article
+      className={`cell cell-${size}`}
+      style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
+    >
+      <Link to={`/article/${article.id}`} className="cell-link" aria-label={article.title} />
+      <div className="cell-img">
+        <CoverImage src={getCoverImage(article)} title={article.title} seed={article.id} eager={index < 3} />
+      </div>
+      {playable && (
+        <span className="cell-badge">
+          <i />
+          PLAYABLE
+        </span>
+      )}
+      <span className="cell-code">{code}</span>
+      <div className="cell-body">
+        <span className="cell-meta">
+          {code} · {formatChinaDotDate(article.createdAt)}
+        </span>
+        <h3>{article.title}</h3>
+        <p>{getArticleExcerpt(article, 60)}</p>
+        {tags.length > 0 && (
+          <ul className="cell-tags">
+            {tags.map((tag) => (
+              <li key={tag} className={tagChipClass(tag)}>
+                {tag}
+              </li>
+            ))}
+          </ul>
+        )}
+        {(article.demoUrl || article.repoUrl) && (
+          <div className="cell-actions">
+            {article.demoUrl && (
+              <a href={article.demoUrl} className="lab-act lab-act-play" target="_blank" rel="noopener noreferrer">
+                <FiPlay />
+                体验
+              </a>
+            )}
+            {article.repoUrl && (
+              <a href={article.repoUrl} className="lab-act" target="_blank" rel="noopener noreferrer">
+                <FaGithub />
+                GitHub
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
 export default function LabList() {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { articles, loading, error } = useArticles('lab');
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTag = searchParams.get('tag')?.trim() ?? '';
-
-  useEffect(() => {
-    loadArticles();
-  }, []);
-
-  const loadArticles = async () => {
-    try {
-      const data = await articleService.getArticles('lab');
-      setArticles(data);
-    } catch (error) {
-      console.error('Failed to load lab articles:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const extractFirstImage = (content: string): string | null => {
-    const imageRegex = /!\[([^\]]*)\]\(([^\)]+)\)/;
-    const match = content.match(imageRegex);
-    if (match && match[2]) {
-      return match[2];
-    }
-    return null;
-  };
-
-  const extractExcerpt = (content: string) => {
-    const textWithoutImages = content
-      .replace(/!\[([^\]]*)\]\([^\)]+\)/g, '')
-      .replace(/^#+\s+/gm, '')
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-      .replace(/`([^`]+)`/g, '$1')
-      .trim();
-
-    const lines = textWithoutImages.split(/\r?\n/);
-    let firstNonEmptyLine = '';
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine.length > 0) {
-        firstNonEmptyLine = trimmedLine;
-        break;
-      }
-    }
-
-    if (firstNonEmptyLine.length > 80) {
-      return firstNonEmptyLine.substring(0, 80) + '...';
-    }
-
-    return firstNonEmptyLine || '暂无预览内容';
-  };
-
-  const getArticleExcerpt = (article: Article) => {
-    if (article.excerpt && article.excerpt.trim()) {
-      return article.excerpt.trim();
-    }
-    return extractExcerpt(article.content);
-  };
-
-  const getCoverImage = (article: Article): string | null => {
-    const fromContent = extractFirstImage(article.content);
-    if (fromContent) {
-      return fromContent;
-    }
-
-    if (article.imagePlans) {
-      try {
-        const imagePlans = JSON.parse(article.imagePlans);
-        if (Array.isArray(imagePlans) && imagePlans.length > 0) {
-          const firstPlan = imagePlans[0];
-          if (firstPlan.imageUrl) {
-            return firstPlan.imageUrl;
-          }
-        }
-      } catch {
-        // 解析失败则视为无封面
-      }
-    }
-
-    return null;
-  };
+  const playableOnly = searchParams.get('playable') === '1';
 
   const filterTags = useMemo(() => collectFilterTags(articles), [articles]);
+  const playableCount = useMemo(() => articles.filter((article) => article.demoUrl).length, [articles]);
 
-  const visibleArticles = useMemo(() => {
-    return articles.filter((article) => articleMatchesFilter(article, selectedTag));
-  }, [articles, selectedTag]);
+  const pool = useMemo(
+    () => (playableOnly ? articles.filter((article) => article.demoUrl) : articles),
+    [articles, playableOnly],
+  );
 
-  const selectFilter = (tag: string | null) => {
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const article of pool) {
+      for (const tag of getArticleTags(article)) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [pool]);
+
+  const visibleArticles = useMemo(
+    () => pool.filter((article) => articleMatchesFilter(article, selectedTag)),
+    [pool, selectedTag],
+  );
+  const sizes = useMemo(() => assignCellSizes(visibleArticles.length), [visibleArticles.length]);
+
+  const updateParams = (key: string, value: string | null) => {
     const next = new URLSearchParams(searchParams);
-    if (!tag) {
-      next.delete('tag');
+    if (value) {
+      next.set(key, value);
     } else {
-      next.set('tag', tag);
+      next.delete(key);
     }
     setSearchParams(next, { replace: true });
   };
 
-  const handleTagClick = (tag: string) => {
-    if (tag === selectedTag) {
-      return;
-    }
-    selectFilter(tag);
-  };
+  const counter = [
+    { value: articles.length, label: 'PROJECTS' },
+    { value: playableCount, label: 'PLAYABLE', live: true },
+    { value: filterTags.length, label: 'CATEGORIES' },
+  ];
 
   return (
-    <div className="lab-page">
+    <div className="lab-page container">
+      <section className="lab-hero">
+        <div>
+          <span className="eyebrow">playground / 好玩的东西都在这</span>
+          <h1>
+            实验室 <span className="latin">Lab.</span>
+          </h1>
+          <p>{siteConfig.labLead}</p>
+        </div>
+        <dl className="lab-counter">
+          {counter.map((item) => (
+            <div key={item.label} className={item.live ? 'live' : ''}>
+              <dt>{item.label}</dt>
+              <dd className="latin">{loading ? '—' : item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       {loading ? (
-        <div className="loading">加载中...</div>
+        <div className="loading">LOADING</div>
+      ) : error ? (
+        <div className="empty-state">实验室加载失败，请稍后刷新重试</div>
       ) : articles.length === 0 ? (
-        <div className="empty-state">暂无实验室内容</div>
+        <div className="empty-state">实验室还空着，新玩具正在路上</div>
       ) : (
         <>
-          <div className="lab-filters" role="toolbar" aria-label="按类型筛选">
-            <button
-              type="button"
-              className={`lab-filter ${selectedTag === '' ? 'active' : ''}`}
-              aria-pressed={selectedTag === ''}
-              onClick={() => selectFilter(null)}
-            >
-              全部
-            </button>
-            {filterTags.map((tag) => (
+          <div className="lab-toolbar">
+            <div className="lab-filters" role="toolbar" aria-label="按类型筛选">
               <button
-                key={tag}
                 type="button"
-                className={`lab-filter ${selectedTag === tag ? 'active' : ''}`}
-                aria-pressed={selectedTag === tag}
-                onClick={() => handleTagClick(tag)}
+                className={`lab-filter ${selectedTag === '' ? 'active' : ''}`}
+                aria-pressed={selectedTag === ''}
+                onClick={() => updateParams('tag', null)}
               >
-                {tag}
+                全部 <sup>{String(pool.length).padStart(2, '0')}</sup>
               </button>
-            ))}
+              {filterTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`lab-filter ${selectedTag === tag ? 'active' : ''}`}
+                  aria-pressed={selectedTag === tag}
+                  onClick={() => updateParams('tag', tag)}
+                >
+                  {tag} <sup>{String(tagCounts.get(tag) ?? 0).padStart(2, '0')}</sup>
+                </button>
+              ))}
+            </div>
+            {playableCount > 0 && (
+              <label className="lab-toggle">
+                只看可在线体验
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={playableOnly}
+                  onChange={(event) => updateParams('playable', event.target.checked ? '1' : null)}
+                />
+                <span className="lab-switch" aria-hidden="true" />
+              </label>
+            )}
           </div>
-          {visibleArticles.length === 0 ? (
-            <div className="empty-state">该类型暂无项目</div>
-          ) : (
-            <div className="lab-list">
-              {visibleArticles.map((article) => {
-                const coverImage = getCoverImage(article);
-                const tags = getArticleTags(article);
 
-                return (
-                  <article key={article.id} className="lab-item">
-                    <div className="lab-card">
-                      <Link to={`/article/${article.id}`} className="lab-card-main">
-                        <div className="lab-card-cover">
-                          {coverImage ? (
-                            <img src={coverImage} alt={article.title} />
-                          ) : (
-                            <div className="lab-card-cover-placeholder" aria-hidden="true">
-                              <span>暂无封面</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="lab-card-body">
-                          <h2 className="lab-title">{article.title}</h2>
-                          <p className="lab-tagline">{getArticleExcerpt(article)}</p>
-                          {tags.length > 0 && (
-                            <ul className="lab-tags">
-                              {tags.map((tag) => (
-                                <li key={tag} className="lab-tag">{tag}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </Link>
-                      {(article.demoUrl || article.repoUrl) && (
-                        <div className="lab-card-actions">
-                          {article.demoUrl && (
-                            <a
-                              href={article.demoUrl}
-                              className="lab-action lab-action-demo"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              体验
-                            </a>
-                          )}
-                          {article.repoUrl && (
-                            <a
-                              href={article.repoUrl}
-                              className="lab-action lab-action-repo"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              GitHub
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+          {visibleArticles.length === 0 ? (
+            <div className="empty-state">这个分类下暂时没有项目</div>
+          ) : (
+            <div className="bento">
+              {visibleArticles.map((article, i) => (
+                <LabCell key={article.id} article={article} size={sizes[i]} index={i} />
+              ))}
             </div>
           )}
         </>

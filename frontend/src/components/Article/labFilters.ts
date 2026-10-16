@@ -24,3 +24,14 @@ export function articleMatchesFilter(article: Pick<Article, 'tags'>, selectedTag
   }
   return getArticleTags(article).includes(selectedTag);
 }
+
+const TAG_TONES: Record<string, string> = {
+  游戏: 'chip-coral',
+  AI: 'chip-violet',
+  工具: 'chip-sun',
+  阅读: 'chip-mint',
+};
+
+export function tagChipClass(tag: string): string {
+  return `chip ${TAG_TONES[tag] ?? ''}`.trim();
+}
