@@ -1,7 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiArrowRight } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { getErrorMessage } from '../../utils/errorHandler';
+import { siteConfig } from '../../config/site';
+import Backdrop from '../Layout/Backdrop';
+import BrandMark from '../Layout/BrandMark';
+import ThemeToggle from '../ThemeToggle';
+import '../Layout/Layout.css';
 import './Login.css';
 
 export default function Login() {
@@ -29,14 +35,30 @@ export default function Login() {
 
   return (
     <div className="login-container">
+      <Backdrop />
+      <div className="login-topbar">
+        <Link to="/" className="login-back mono">
+          <FiArrowLeft />
+          <span>回到首页</span>
+        </Link>
+        <ThemeToggle />
+      </div>
       <div className="login-box">
-        <h2>登录</h2>
+        <div className="login-brand">
+          <BrandMark size={44} />
+          <span className="mono">{siteConfig.name}</span>
+        </div>
+        <span className="eyebrow">Sign in · 管理入口</span>
+        <h1>
+          欢迎回来，<span className="latin">welcome.</span>
+        </h1>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">用户名</label>
+            <label htmlFor="username" className="mono">USERNAME · 用户名</label>
             <input
               id="username"
               type="text"
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -44,19 +66,21 @@ export default function Login() {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="password">密码</label>
+            <label htmlFor="password" className="mono">PASSWORD · 密码</label>
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
             />
           </div>
-          {error && <div className="error-message">{error}</div>}
-          <button type="submit" disabled={loading} className="btn btn-primary submit-btn">
+          {error && <div className="error-message" role="alert">{error}</div>}
+          <button type="submit" disabled={loading} className="btn btn-wind submit-btn">
             <span>{loading ? '登录中...' : '登录'}</span>
+            {!loading && <FiArrowRight />}
           </button>
         </form>
       </div>

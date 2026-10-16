@@ -14,7 +14,7 @@ export default function LoginPage() {
   }, [isAuthenticated, loading, navigate]);
 
   if (loading) {
-    return <div>加载中...</div>;
+    return <div className="loading">加载中...</div>;
   }
 
   if (isAuthenticated) {

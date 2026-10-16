@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { FiEdit3, FiPlus, FiTrash2 } from 'react-icons/fi';
+import SiteLayout from '../components/Layout/SiteLayout';
 import { articleService, Article } from '../services/article';
-import { formatChinaDate } from '../utils/dateUtils';
+import { formatChinaDotDateTime } from '../utils/dateUtils';
+import { formatIndex, getArticleExcerpt, readingMinutes } from '../utils/articleText';
 import './DraftsPage.css';
 
 export default function DraftsPage() {
@@ -39,121 +42,74 @@ export default function DraftsPage() {
     }
   };
 
-  if (loading) {
-    return <div className="loading">加载中...</div>;
-  }
-
-  const formatDate = (dateString: string) => {
-    return formatChinaDate(dateString, 'zh-CN');
-  };
-
-  // 提取摘要
-  const extractExcerpt = (content: string) => {
-    let textWithoutImages = content
-      .replace(/!\[([^\]]*)\]\([^\)]+\)/g, '')
-      .replace(/^#+\s+/gm, '')
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-      .replace(/`([^`]+)`/g, '$1')
-      .trim();
-    
-    const lines = textWithoutImages.split(/\r?\n/);
-    let firstNonEmptyLine = '';
-    
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine.length > 0) {
-        firstNonEmptyLine = trimmedLine;
-        break;
-      }
-    }
-    
-    if (firstNonEmptyLine.length > 150) {
-      return firstNonEmptyLine.substring(0, 150) + '...';
-    }
-    
-    return firstNonEmptyLine || '暂无预览内容';
-  };
-
-  // 获取文章摘要：优先使用设置的摘要，否则从内容中提取
-  const getArticleExcerpt = (article: Article) => {
-    if (article.excerpt && article.excerpt.trim()) {
-      return article.excerpt.trim();
-    }
-    return extractExcerpt(article.content);
-  };
-
   return (
-    <div className="drafts-page">
-      <div className="drafts-header">
-        <h1>草稿箱</h1>
-        <div className="drafts-actions">
-          <button
-            onClick={() => navigate('/editor')}
-            className="btn btn-primary"
-          >
-            新建文章
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="btn btn-secondary"
-          >
-            返回首页
-          </button>
-        </div>
-      </div>
+    <SiteLayout section={null}>
+      <div className="container drafts-page">
+        <header className="drafts-hero">
+          <div>
+            <span className="eyebrow">Drafts · 还没吹出去的风</span>
+            <h1>
+              草稿箱 <span className="latin">Drafts.</span>
+            </h1>
+          </div>
+          <div className="drafts-hero-side">
+            {!loading && (
+              <span className="mono drafts-count">
+                {String(articles.length).padStart(2, '0')} <small>DRAFTS</small>
+              </span>
+            )}
+            <button onClick={() => navigate('/editor')} className="btn btn-wind">
+              <FiPlus />
+              <span>新建文章</span>
+            </button>
+          </div>
+        </header>
 
-      {articles.length === 0 ? (
-        <div className="empty-state">
-          <p>暂无草稿</p>
-          <button
-            onClick={() => navigate('/editor')}
-            className="btn btn-primary"
-          >
-            创建新文章
-          </button>
-        </div>
-      ) : (
-        <div className="drafts-list">
-          {articles.map((article) => (
-            <div key={article.id} className="draft-item">
-              <div className="draft-content">
-                <Link to={`/edit/${article.id}`}>
-                  <h2 className="draft-title">{article.title}</h2>
-                  <p className="draft-excerpt">
-                    {getArticleExcerpt(article)}
-                  </p>
-                  <div className="draft-meta">
-                    <span className="draft-date">
-                      最后更新：{formatDate(article.updatedAt)}
+        {loading ? (
+          <div className="loading">加载中...</div>
+        ) : articles.length === 0 ? (
+          <div className="empty-state drafts-empty">
+            <p className="art">草稿箱空空的，风很安静。</p>
+            <button onClick={() => navigate('/editor')} className="btn btn-primary">
+              <FiEdit3 />
+              <span>写点什么</span>
+            </button>
+          </div>
+        ) : (
+          <ol className="draft-list">
+            {articles.map((article, index) => (
+              <li key={article.id} className="draft-item" style={{ animationDelay: `${index * 60}ms` }}>
+                <span className="draft-idx">{formatIndex(index + 1)}</span>
+                <Link to={`/edit/${article.id}`} className="draft-main">
+                  <div className="draft-meta mono">
+                    <span className={`chip ${article.category === 'lab' ? 'chip-violet' : 'chip-coral'}`}>
+                      {article.category === 'lab' ? '实验室' : '博客'}
                     </span>
-                    {article.category && (
-                      <span className="draft-category">
-                        {article.category === 'lab' ? '实验室' : '博客'}
-                      </span>
-                    )}
+                    <span>更新于 {formatChinaDotDateTime(article.updatedAt)}</span>
+                    <span>约 {readingMinutes(article.content)} 分钟</span>
                   </div>
+                  <h2>{article.title || '无标题草稿'}</h2>
+                  <p>{getArticleExcerpt(article) || '暂无预览内容'}</p>
                 </Link>
-              </div>
-              <div className="draft-actions">
-                <button
-                  onClick={() => navigate(`/edit/${article.id}`)}
-                  className="btn btn-sm btn-primary"
-                >
-                  编辑
-                </button>
-                <button
-                  onClick={() => handleDelete(article.id, article.title)}
-                  className="btn btn-sm btn-danger"
-                >
-                  删除
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+                <div className="draft-actions">
+                  <button onClick={() => navigate(`/edit/${article.id}`)} className="btn btn-sm btn-secondary">
+                    <FiEdit3 />
+                    <span>编辑</span>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(article.id, article.title)}
+                    className="icon-btn draft-delete"
+                    aria-label={`删除草稿《${article.title}》`}
+                    title="删除"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </SiteLayout>
   );
 }

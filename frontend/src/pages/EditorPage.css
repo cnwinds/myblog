@@ -148,8 +148,9 @@
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  font-family: var(--f-art);
   font-size: var(--font-size-xl);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-primary);
   transition: border-color var(--transition-fast);
 }
