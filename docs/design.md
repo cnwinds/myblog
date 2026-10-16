@@ -121,6 +121,10 @@ export const siteConfig = {
 
 顺序 A → B → C → B → C …；剩 1 张用 full(4×1)，剩 2 张用两张 wide，剩 3 张用 B。窄屏下 CSS 改为 2 列，尺寸类只影响视觉比例。
 
+## Favicon
+
+站点图标是 `frontend/public/favicon.svg`（深色圆角底 + 珊瑚→粉→紫的风线）。`index.html` 用 `?v=breeze` 引用，换图标时改版本号即可绕过 CDN 旧缓存。Nginx 对 `/favicon.svg` 只缓存一天，不对它使用一年 `immutable`。
+
 ## 无障碍与动效
 
 - 所有图标按钮带 `aria-label`
