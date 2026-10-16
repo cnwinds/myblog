@@ -4,7 +4,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.9);
+  background-color: rgba(12, 13, 17, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -36,8 +38,8 @@
   max-width: 100%;
   max-height: 90vh;
   object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.7);
   animation: zoomIn 0.2s ease-in-out;
 }
 
@@ -81,9 +83,3 @@
   transform: scale(0.95);
 }
 
-/* 暗色主题支持 */
-@media (prefers-color-scheme: dark) {
-  .image-preview-overlay {
-    background-color: rgba(0, 0, 0, 0.95);
-  }
-}
