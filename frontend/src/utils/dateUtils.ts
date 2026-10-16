@@ -6,7 +6,7 @@ const CHINA_UTC_OFFSET = '+08:00';
  * @param dateString 日期时间字符串（格式：YYYY-MM-DD HH:MM:SS）
  * @returns Date 对象
  */
-function parseChinaDateTime(dateString: string): Date {
+export function parseChinaDateTime(dateString: string): Date {
   // 如果字符串已经包含时区信息，直接解析
   if (dateString.includes('+') || dateString.includes('Z') || dateString.includes('T')) {
     return new Date(dateString);
@@ -56,4 +56,29 @@ export function formatChinaDate(dateString: string, locale: string = 'en-US'): s
   };
 
   return date.toLocaleDateString(locale, options);
+}
+
+function chinaDateParts(dateString: string): Record<string, string> {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: CHINA_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(parseChinaDateTime(dateString));
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+}
+
+/** 中国时区的 "2026.10.15" */
+export function formatChinaDotDate(dateString: string): string {
+  const { year, month, day } = chinaDateParts(dateString);
+  return `${year}.${month}.${day}`;
+}
+
+/** 中国时区的 "2026.10.15 14:20" */
+export function formatChinaDotDateTime(dateString: string): string {
+  const { year, month, day, hour, minute } = chinaDateParts(dateString);
+  return `${year}.${month}.${day} ${hour === '24' ? '00' : hour}:${minute}`;
 }

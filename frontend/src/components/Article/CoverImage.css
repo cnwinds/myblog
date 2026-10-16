@@ -1,0 +1,59 @@
+.cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-gen {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  container-type: size;
+}
+
+.cover-gen span {
+  font-size: clamp(24px, 34cqmin, 96px);
+  color: rgba(24, 23, 29, 0.72);
+  line-height: 1;
+}
+
+.cover-gen .art {
+  font-weight: 700;
+}
+
+.cover-gen-0 {
+  background: radial-gradient(circle at 20% 30%, #ffb199 0, transparent 55%),
+    radial-gradient(circle at 80% 70%, #a79bff 0, transparent 60%), #f1e8ff;
+}
+
+.cover-gen-1 {
+  background: radial-gradient(circle at 70% 30%, #9fe8cf 0, transparent 55%),
+    radial-gradient(circle at 25% 75%, #ffd27a 0, transparent 60%), #fff3df;
+}
+
+.cover-gen-2 {
+  background: radial-gradient(circle at 30% 25%, #ff9fc0 0, transparent 55%),
+    radial-gradient(circle at 75% 80%, #8fd3ff 0, transparent 60%), #eef4ff;
+}
+
+[data-theme='dark'] .cover-gen-0 {
+  background: radial-gradient(circle at 25% 25%, rgba(255, 106, 61, 0.55), transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(107, 92, 255, 0.6), transparent 60%), #17151f;
+}
+
+[data-theme='dark'] .cover-gen-1 {
+  background: radial-gradient(circle at 70% 30%, rgba(35, 196, 154, 0.5), transparent 55%),
+    radial-gradient(circle at 25% 75%, rgba(255, 194, 61, 0.4), transparent 60%), #14181a;
+}
+
+[data-theme='dark'] .cover-gen-2 {
+  background: radial-gradient(circle at 30% 25%, rgba(255, 79, 139, 0.5), transparent 55%),
+    radial-gradient(circle at 75% 80%, rgba(79, 179, 255, 0.45), transparent 60%), #13151d;
+}
+
+[data-theme='dark'] .cover-gen span {
+  color: rgba(255, 255, 255, 0.85);
+}
