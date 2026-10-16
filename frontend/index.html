@@ -6,7 +6,22 @@
     <link rel="alternate icon" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>cnwinds的博客</title>
+    <meta name="description" content="cnwinds 的随笔本与游乐场：写写 AI、写写生活，偶尔做点能玩的小东西。" />
+    <meta name="theme-color" content="#f4f0e6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c0d11" media="(prefers-color-scheme: dark)" />
+    <title>cnwinds · 风吹过的地方</title>
+    <script>
+      (function () {
+        var theme;
+        try {
+          theme = localStorage.getItem('theme');
+        } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

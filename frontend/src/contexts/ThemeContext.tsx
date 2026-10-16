@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 
 export type Theme = 'light' | 'dark';
 
@@ -11,9 +11,9 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = 'theme';
-const DEFAULT_THEME: Theme = 'light';
+const DARK_QUERY = '(prefers-color-scheme: dark)';
 
-function getInitialTheme(): Theme {
+function readSavedTheme(): Theme | null {
   try {
     const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     if (savedTheme === 'light' || savedTheme === 'dark') {
@@ -22,32 +22,51 @@ function getInitialTheme(): Theme {
   } catch (error) {
     console.error('Failed to read theme from localStorage:', error);
   }
-  return DEFAULT_THEME;
+  return null;
+}
+
+function getSystemTheme(): Theme {
+  return typeof window !== 'undefined' && window.matchMedia?.(DARK_QUERY).matches ? 'dark' : 'light';
 }
 
 interface ThemeProviderProps {
   children: ReactNode;
 }
 
+/** 未手动选择过主题时跟随系统；手动切换后记住选择。 */
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+  const [theme, setThemeState] = useState<Theme>(() => readSavedTheme() ?? getSystemTheme());
 
   useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (readSavedTheme() || !window.matchMedia) {
+      return;
+    }
+    const media = window.matchMedia(DARK_QUERY);
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (!readSavedTheme()) {
+        setThemeState(event.matches ? 'dark' : 'light');
+      }
+    };
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, []);
+
+  const setTheme = useCallback((newTheme: Theme) => {
+    setThemeState(newTheme);
     try {
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem(THEME_STORAGE_KEY, theme);
+      localStorage.setItem(THEME_STORAGE_KEY, newTheme);
     } catch (error) {
       console.error('Failed to save theme to localStorage:', error);
     }
-  }, [theme]);
+  }, []);
 
-  const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  }, [theme, setTheme]);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>

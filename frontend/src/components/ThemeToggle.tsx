@@ -1,12 +1,12 @@
 import { FiMoon, FiSun } from 'react-icons/fi';
 import { useTheme } from '../contexts/ThemeContext';
-import './ThemeToggle.css';
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const label = `切换到${theme === 'light' ? '暗色' : '亮色'}主题`;
 
   return (
-    <button onClick={toggleTheme} className="theme-toggle" title={`切换到${theme === 'light' ? '暗色' : '亮色'}主题`}>
+    <button type="button" onClick={toggleTheme} className="icon-btn" title={label} aria-label={label}>
       {theme === 'light' ? <FiMoon /> : <FiSun />}
     </button>
   );
