@@ -207,7 +207,7 @@
 .model-select-inline:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(107, 92, 255, 0.2);
 }
 
 .model-select-inline:disabled {
@@ -216,7 +216,7 @@
 }
 
 .status-error-text {
-  color: #ff4d4f;
+  color: var(--color-error);
   font-size: 13px;
 }
 
@@ -230,15 +230,15 @@
 }
 
 .status-generating {
-  color: #1890ff;
+  color: var(--color-primary);
 }
 
 .status-completed {
-  color: #52c41a;
+  color: var(--mint);
 }
 
 .status-error {
-  color: #ff4d4f;
+  color: var(--color-error);
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
@@ -397,7 +397,7 @@
 .prompt-editable:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(107, 92, 255, 0.2);
 }
 
 .image-plan-preview-list {
@@ -423,9 +423,9 @@
 }
 
 .image-plan-preview.selected {
-  border-color: #1890ff;
+  border-color: var(--color-primary);
   border-width: 2px;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(107, 92, 255, 0.2);
 }
 
 .image-plan-preview img {
@@ -488,7 +488,7 @@
   position: absolute;
   bottom: 8px;
   right: 8px;
-  background: rgba(24, 144, 255, 0.9);
+  background: rgba(107, 92, 255, 0.9);
   color: white;
   border: none;
   border-radius: 4px;
@@ -504,16 +504,16 @@
 }
 
 .image-copy-btn:hover {
-  background: rgba(24, 144, 255, 1);
+  background: rgba(107, 92, 255, 1);
   transform: scale(1.1);
 }
 
 .image-copy-btn.copied {
-  background: rgba(82, 196, 26, 0.9);
+  background: rgba(35, 196, 154, 0.9);
 }
 
 .image-copy-btn.copied:hover {
-  background: rgba(82, 196, 26, 1);
+  background: rgba(35, 196, 154, 1);
 }
 
 .image-select-btn {
@@ -540,21 +540,21 @@
 
 .image-select-btn:hover {
   background: rgba(255, 255, 255, 1);
-  border-color: rgba(24, 144, 255, 0.5);
+  border-color: rgba(107, 92, 255, 0.5);
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(107, 92, 255, 0.3);
 }
 
 .image-select-btn.selected {
-  background: #1890ff;
+  background: var(--color-primary);
   color: white;
-  border-color: #1890ff;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.4);
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(107, 92, 255, 0.4);
 }
 
 .image-select-btn.selected:hover {
-  background: #40a9ff;
-  border-color: #40a9ff;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
   transform: scale(1.1);
 }
 
@@ -629,65 +629,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #1890ff;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #40a9ff;
-}
-
-.btn-success {
-  background-color: #52c41a;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background-color: #73d13d;
-}
-
-.btn-link {
-  background: none;
-  color: #1890ff;
-  padding: 4px 8px;
-  font-size: 12px;
-}
-
-.btn-link:hover:not(:disabled) {
-  background-color: rgba(24, 144, 255, 0.1);
-  color: #40a9ff;
-}
-
-.btn-sm {
-  padding: 4px 8px;
-  font-size: 12px;
-  gap: 4px;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
 }
 
 /* 暗色主题特定调整（如果需要覆盖某些变量） */
@@ -835,7 +776,7 @@
 .template-textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(107, 92, 255, 0.2);
 }
 
 .editor-actions {

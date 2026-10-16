@@ -84,19 +84,19 @@
   transition: all var(--transition-base);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(107, 92, 255, 0.3);
   border: none;
 }
 
 .upload-btn:hover:not(:has(input:disabled)) {
   background: var(--color-primary-hover);
-  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(107, 92, 255, 0.4);
   transform: translateY(-1px);
 }
 
 .upload-btn:active:not(:has(input:disabled)) {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(74, 158, 255, 0.3);
+  box-shadow: 0 2px 6px rgba(107, 92, 255, 0.3);
 }
 
 .upload-btn input[type="file"] {
