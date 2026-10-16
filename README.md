@@ -2,6 +2,8 @@
 
 一个前后端分离的博客系统，支持用户登录、Markdown编辑器、文章发布和图片上传功能。
 
+界面风格为「Breeze · 风」：米白纸张底 + 极光渐变 + 手写感标题，支持浅色 / 深色主题，详见 [docs/design.md](docs/design.md)。
+
 ## 技术栈
 
 ### 后端
@@ -16,6 +18,7 @@
 - React Router
 - @uiw/react-md-editor (Markdown编辑器)
 - React Markdown (Markdown渲染)
+- 自托管字体：霞鹜文楷、JetBrains Mono、Instrument Serif
 
 ## 快速开始
 
@@ -180,10 +183,16 @@ npm run dev
    - 自动插入Markdown语法
 
 5. **实验室**
-   - `/lab` 以项目卡片展示（封面、标签、体验 / GitHub），顶部可按游戏 / AI / 工具 / 阅读筛选
+   - `/lab` 以 Bento 拼贴卡片展示（封面、标签、体验 / GitHub），可按游戏 / AI / 工具 / 阅读筛选，可只看可在线体验的项目
    - 列表按创建时间倒序
    - 实验室文章详情页同样提供体验 / 仓库入口
    - 仍使用 `category: 'lab'` 文章，详见 [docs/lab.md](docs/lab.md)
+
+6. **阅读体验**
+   - ⌘K / Ctrl K 全站搜索
+   - 文章页阅读进度、自动目录、预计阅读时间、上一篇 / 下一篇
+   - 首页写作热力图；站点文案集中在 `frontend/src/config/site.ts`
+   - 设计规范见 [docs/design.md](docs/design.md)
 
 ## API接口
 
